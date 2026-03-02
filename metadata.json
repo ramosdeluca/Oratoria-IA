@@ -1,0 +1,8 @@
+{
+  "name": "PratiquePRO - Tutor de Inglês",
+  "description": "Um aplicativo interativo de prática de inglês com tecnologia de IA, apresentando avatares de voz em tempo real, acompanhamento de progresso e avaliação dinâmica de habilidades.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}

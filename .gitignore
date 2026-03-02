@@ -1,0 +1,12 @@
+# Editor
+.vscode/
+
+# Build
+dist/
+.next/
+node_modules/
+
+# Env
+.env
+.env.local
+.vercel
