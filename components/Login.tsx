@@ -3,7 +3,7 @@ import TermsModal from './TermsModal';
 import { TermsContent, PrivacyContent } from './LegalContent';
 import { User } from '../types';
 import { supabase, getUserProfile, getEmailByUsername, updateUserStats, resetPasswordForEmail, updateUserPassword } from '../services/supabase';
-
+//oratoria
 interface LoginProps {
   onLogin: (user: User) => void;
   initialMode?: 'login' | 'register' | 'reset' | 'updatePassword';
