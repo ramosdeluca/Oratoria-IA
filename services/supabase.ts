@@ -92,7 +92,8 @@ export const saveSession = async (userId: string, session: SessionResult) => {
     feedback: session.feedback,
     duration_seconds: Math.floor(session.durationSeconds || 0),
     transcript: session.transcript || "",
-    date: session.date || new Date().toISOString()
+    date: session.date || new Date().toISOString(),
+    lesson_id: session.lessonId || null
   };
 
   const { error } = await supabase.from('sessions').insert([payload]);
@@ -130,7 +131,7 @@ export const updateUserStats = async (userId: string, updates: Partial<User>) =>
 export const getUserHistory = async (userId: string): Promise<SessionResult[]> => {
   // Remove colunas que podem não existir ainda no banco para evitar erro 400
   const { data, error } = await supabase.from('sessions')
-    .select('user_id, avatar_name, overall_score, confidence_score, clarity_score, persuasion_score, posture_score, feedback, duration_seconds, transcript, date')
+    .select('user_id, avatar_name, overall_score, confidence_score, clarity_score, persuasion_score, posture_score, feedback, duration_seconds, transcript, date, lesson_id')
     .eq('user_id', userId)
     .order('date', { ascending: false });
 
@@ -149,7 +150,8 @@ export const getUserHistory = async (userId: string): Promise<SessionResult[]> =
     feedback: s.feedback,
     durationSeconds: s.duration_seconds,
     transcript: s.transcript,
-    date: s.date
+    date: s.date,
+    lessonId: s.lesson_id
   }));
 };
 
@@ -296,4 +298,77 @@ export const updateUserPassword = async (newPassword: string) => {
     password: newPassword
   });
   return { success: !error, error };
+};
+
+/**
+ * Gestão de Tempo de Prática Livre (Modo 4)
+ */
+export const startConversationSession = async (userId: string, maxMinutes: number = 20) => {
+  const expiresAt = new Date();
+  expiresAt.setMinutes(expiresAt.getMinutes() + maxMinutes);
+
+  const { data, error } = await supabase
+    .from('conversation_sessions')
+    .insert([
+      { user_id: userId, max_minutes: maxMinutes, expires_at: expiresAt.toISOString() }
+    ])
+    .select()
+    .single();
+
+  if (error) console.error("Erro ao iniciar sessão de prática:", error);
+  return data;
+};
+
+export const getActiveConversationSession = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('conversation_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('expires_at', new Date().toISOString())
+    .order('expires_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) console.error("Erro ao buscar sessão ativa:", error);
+  return data;
+};
+
+/**
+ * Storage e Áudio do Avatar
+ */
+export const uploadLessonAudio = async (fileName: string, audioBlob: Blob): Promise<string> => {
+  console.log(`[Supabase Storage] Iniciando upload: ${fileName} (${audioBlob.size} bytes)`);
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('lesson_audio')
+      .upload(fileName, audioBlob, {
+        contentType: 'audio/mpeg',
+        upsert: true
+      });
+
+    if (error) {
+      console.error("[Supabase Storage] Erro detalhado no upload:", error);
+      // Se o erro for de bucket inexistente, o log acima ajudará a confirmar
+      return "";
+    }
+
+    console.log("[Supabase Storage] Upload concluído com sucesso:", data.path);
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('lesson_audio')
+      .getPublicUrl(data.path);
+
+    console.log("[Supabase Storage] URL Pública gerada:", publicUrl);
+    return publicUrl;
+  } catch (err) {
+    console.error("[Supabase Storage] Exceção inesperada no upload:", err);
+    return "";
+  }
+};
+
+export const updateCourseAudioUrl = async (table: 'lessons' | 'exercises', id: string, audioUrl: string) => {
+  const { error } = await supabase.from(table).update({ audio_url: audioUrl }).eq('id', id);
+  if (error) console.error(`Erro ao atualizar audio_url em ${table}:`, error);
+  return !error;
 };

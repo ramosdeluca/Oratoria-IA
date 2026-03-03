@@ -140,8 +140,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialMode }) => {
         await updateUserStats(data.user.id, {
           cpf: cleanCpf,
           phone: formData.phone,
-          creditsRemaining: 10, // Créditos Iniciais de 10 minutos
-          creditsTotal: 10,
+          creditsRemaining: 20, // Créditos Iniciais de 20 minutos
+          creditsTotal: 20,
           name: formData.name,
           surname: formData.surname,
           username: formData.username.toLowerCase(),
@@ -164,8 +164,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialMode }) => {
         points: 0,
         sessionsCompleted: 0,
         joinedDate: new Date().toISOString(),
-        creditsRemaining: 10,
-        creditsTotal: 10
+        creditsRemaining: 20,
+        creditsTotal: 20
       };
 
       // Tenta carregar o perfil do banco

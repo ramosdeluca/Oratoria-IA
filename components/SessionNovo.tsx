@@ -133,31 +133,30 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
         let audioUrl = "";
 
         try {
-            // Só usa o cache se for para o mesmo avatar (mesma voz)
             if (!forceTTS && tableReference?.cachedUrl && tableReference.cachedUrl.includes(avatar.name)) {
-                console.log(`[Session] Usando áudio em cache para ${tableReference.table}: ${tableReference.id}`);
+                console.log(`[SessionNovo] Usando áudio em cache para ${tableReference.table}: ${tableReference.id}`);
                 audioUrl = tableReference.cachedUrl;
             } else {
-                console.log(`[Session] Cache não encontrado ou forçado. Enriquecendo script e gerando novo TTS...`);
+                console.log(`[SessionNovo] Cache não encontrado ou forçado. Enriquecendo script e gerando novo TTS...`);
 
                 // Enriquece o texto da aula com uma explicação dinâmica da IA
                 const enhancedText = await generateEnhancedLessonScript(text);
-                console.log(`[Session] Script enriquecido: "${enhancedText.substring(0, 50)}..."`);
+                console.log(`[SessionNovo] Script enriquecido: "${enhancedText.substring(0, 50)}..."`);
 
                 const audioBlob = await generateTTS(enhancedText, avatar.name);
-                if (!audioBlob) throw new Error("Falha ao gerar áudio Gemini TTS");
+                if (!audioBlob) throw new Error("Falha ao gerar áudio");
 
                 if (tableReference) {
                     const fileName = `${tableReference.table}_${tableReference.id}_${avatar.name}.mp3`;
-                    console.log(`[Session] Solicitando upload do áudio para o bucket: ${fileName}`);
+                    console.log(`[SessionNovo] Solicitando upload do áudio para o bucket: ${fileName}`);
                     const uploadedUrl = await uploadLessonAudio(fileName, audioBlob);
 
                     if (uploadedUrl) {
-                        console.log("[Session] Áudio persistido com sucesso no bucket.");
+                        console.log("[SessionNovo] Áudio persistido com sucesso no bucket.");
                         audioUrl = uploadedUrl;
                         await updateCourseAudioUrl(tableReference.table, tableReference.id, uploadedUrl);
                     } else {
-                        console.warn("[Session] Falha no upload para o bucket, usando URL local temporária.");
+                        console.warn("[SessionNovo] Falha no upload para o bucket, usando URL local temporária.");
                         audioUrl = URL.createObjectURL(audioBlob);
                     }
                 } else {
@@ -185,19 +184,16 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             await audio.play();
         } catch (e) {
             console.error(e);
-            setLocalError("Não foi possível reproduzir a voz pela Nuvem (TTS).");
+            setLocalError("Não foi possível reproduzir a voz do avatar.");
             setIsProcessingResponse(false);
         }
     };
-
-
 
     const handleStart = () => {
         setHasStarted(true);
         if (!currentLessonData) return;
 
-        // Ajuste no intro text
-        const introText = `Vamos lá! Hoje veremos ${currentLessonData.lesson.title}. \n\n${currentLessonData.lesson.content}`;
+        const introText = `Olá! Pront${['Sophia', 'Maya', 'Sarah'].includes(avatar.name) ? 'a' : 'o'} para a nossa aula? Hoje veremos ${currentLessonData.lesson.title}. \n\n${currentLessonData.lesson.content}`;
         playTTS(introText, false, { table: 'lessons', id: currentLessonData.lesson.id, cachedUrl: currentLessonData.lesson.audio_url });
     };
 
@@ -274,6 +270,7 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
                             setExerciseFeedback(evaluation);
                             playTTS(evaluation.feedback, true);
                         }
+
                     } catch (e) {
                         setLocalError("Erro ao processar gravação.");
                     } finally {
@@ -347,7 +344,6 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
                                 <h2 className="text-xl font-bold mb-2 text-white">{currentLessonData.lesson.title}</h2>
                                 <p className="text-gray-400 text-sm line-clamp-3 px-4 mb-6">{currentLessonData.lesson.content}</p>
 
-                                {/* Quick Question Area merged into Ensino */}
                                 <div className="w-full max-w-md flex flex-col gap-2 px-4 mb-4">
                                     <div className="flex w-full bg-gray-800 border border-gray-700 rounded-full overflow-hidden focus-within:border-blue-500 transition-colors">
                                         <input

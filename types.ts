@@ -42,6 +42,7 @@ export interface Lesson {
   title: string;
   content: string;
   position: number;
+  audio_url?: string;
 }
 
 export interface Exercise {
@@ -49,6 +50,7 @@ export interface Exercise {
   lesson_id: string;
   instruction: string;
   type: string;
+  audio_url?: string;
 }
 
 export interface StudentProgress {
@@ -59,6 +61,16 @@ export interface StudentProgress {
   score: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ConversationSession {
+  id: string;
+  user_id: string;
+  lesson_id?: string;
+  started_at: string;
+  expires_at: string;
+  max_minutes: number;
+  created_at: string;
 }
 
 export interface LessonChunk {
@@ -116,6 +128,7 @@ export interface SessionResult {
   transcript: string;
   date: string;
   avatarName: string;
+  lessonId?: string | null;
   isCompleted?: boolean;
 }
 

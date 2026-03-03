@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { createBlob, decode, decodeAudioData } from '../utils/audio';
 import { AvatarConfig } from '../types';
+import { searchAllKnowledgeChunks } from '../services/ragService';
 
 interface UseLiveAvatarProps {
   avatarConfig: AvatarConfig;
@@ -205,15 +206,43 @@ export const useLiveAvatar = ({ avatarConfig, userName, previousContext, lessonC
           ${lessonContext}
           
           SUA MISSÃO: Ensine progressivamente. Primeiro explique o conceito da aula brevemente, dê 1 exemplo prático e proponha o EXERCÍCIO fornecido.
-          Avalie pedagogicamente as respostas do aluno a cada passo.` : `MISSÃO: Mantenha a conversação livre e avalie a fluência.`}
+          Avalie pedagogicamente as respostas do aluno a cada passo.` : `MISSÃO: Mantenha a conversação livre sobre ORATÓRIA e avalie a fluência.
+
+          [CONTEXTO ESPECIAL: PRÁTICA LIVRE]
+          Você é um Professor de Oratória de elite em uma sessão de mentoria. 
+          Sua missão é falar APENAS sobre Oratória, Comunicação, Expressão Corporal, Persuasão e o Curso de oratória.
+          Se o aluno perguntar sobre outros assuntos, educadamente traga-o de volta para o tema de oratória.
+          
+          [REGRA DE CONHECIMENTO]
+          Sempre que o aluno tiver uma dúvida técnica sobre oratória ou sobre o que o curso ensina, use a ferramenta 'consultar_conhecimento_oratoria' para basear sua resposta em fatos do curso.`}
 
           VOCÊ É UM PROFESSOR MENTOR DA PLATAFORMA ORATORIAIA${userName ? ` ensinando ${userName}` : ''}.
           REGRAS INEGOCIÁVEIS:
           1. ENSINO ESTRUTURADO: Você NÃO É UM CHATBOT GENÉRICO. Não divague, não invente teorias fora do curso.
           2. SEJA CONCISO E PACIENTE: Dê respostas curtas. Controle a ansiedade do aluno, incentive e engaje-o a Falar as frases propostas. Nunca dê respostas muito longas.
-          3. SÓ FALE PORTUGUÊS (PT-BR): O aluno está treinando oratória, e não inglês. Todo o curso, explicações e práticas devem ser conduzidos inteiramente em Português do Brasil. Seja um professor inspirador.
-          4. FIM DE AULA: Quando você sentir que o aluno já praticou o exercício proposto de forma satisfatória, diga explicitamente: "Ótimo trabalho! Para finalizarmos e avaliarmos seu desempenho nesta aula, por favor clique no botão 'Concluir Exercício' na sua tela."
+          3. SÓ FALE PORTUGUÊS (PT-BR): Todo o curso, explicações e práticas devem ser conduzidos inteiramente em Português do Brasil.
+          4. FIM DE AULA: Quando o objetivo for cumprido, oriente o aluno a concluir.
           5. ROLEPLAY: Siga sua personalidade: ${avatarConfig.systemInstruction}`,
+          tools: [
+            {
+              functionDeclarations: [
+                {
+                  name: "consultar_conhecimento_oratoria",
+                  description: "Consulta a base de conhecimento do curso PratiquePro sobre oratória para responder dúvidas técnicas ou sobre o conteúdo das aulas.",
+                  parameters: {
+                    type: "object" as any,
+                    properties: {
+                      query: {
+                        type: "string" as any,
+                        description: "A pergunta do aluno ou termo de busca relacionado a oratória."
+                      }
+                    },
+                    required: ["query"]
+                  }
+                }
+              ]
+            }
+          ],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         },
@@ -258,12 +287,49 @@ export const useLiveAvatar = ({ avatarConfig, userName, previousContext, lessonC
           },
           onmessage: async (message: LiveServerMessage) => {
             if (!isActiveRef.current) return;
+            console.log("[Live] Mensagem recebida:", JSON.stringify(message).substring(0, 100) + "...");
 
             if (message.serverContent?.outputTranscription?.text) {
               transcriptBufferRef.current.push({ text: message.serverContent.outputTranscription.text, isUser: false });
             }
             if (message.serverContent?.inputTranscription?.text) {
               transcriptBufferRef.current.push({ text: message.serverContent.inputTranscription.text, isUser: true });
+            }
+
+            // Tratamento de Function Calls (RAG)
+            const toolCall = (message as any).toolCall || (message.serverContent as any)?.toolCall;
+            const call = toolCall?.functionCalls?.[0];
+
+            if (call && call.name === 'consultar_conhecimento_oratoria') {
+              console.log("[Live RAG] IA solicitou consulta de conhecimento. Query:", (call.args as any).query);
+              try {
+                const query = (call.args as any).query as string;
+                // Busca assíncrona
+                const knowledgeResult = await searchAllKnowledgeChunks(query);
+                console.log("[Live RAG] Resultado da busca concluído. Tamanho:", knowledgeResult.length);
+
+                currentSessionPromise.then(session => {
+                  if (session && (session as any)._alive !== false) {
+                    const responsePayload = {
+                      functionResponses: [{
+                        name: call.name,
+                        id: call.id,
+                        response: { content: knowledgeResult || "Fale que não encontrou na base, mas responda como especialista." }
+                      }]
+                    };
+
+                    console.log("[Live RAG] Enviando ToolResponse...");
+                    // Suporte a diferentes assinaturas de SDK
+                    if (typeof (session as any).sendToolResponse === 'function') {
+                      (session as any).sendToolResponse(responsePayload);
+                    } else if (typeof (session as any).send === 'function') {
+                      (session as any).send({ toolResponse: responsePayload });
+                    }
+                  }
+                }).catch(err => console.error("[Live RAG] Erro ao enviar resposta:", err));
+              } catch (ragErr) {
+                console.error("[Live RAG] Falha no fluxo RAG:", ragErr);
+              }
             }
 
             const parts = message.serverContent?.modelTurn?.parts;

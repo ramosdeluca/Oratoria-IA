@@ -61,3 +61,35 @@ export const searchLessonChunks = async (query: string, lessonId: string, limit 
         return "";
     }
 };
+export const searchAllKnowledgeChunks = async (query: string, limit = 5): Promise<string> => {
+    console.log("[RAG Service] Iniciando busca global por:", query);
+    const embedding = await generateEmbedding(query);
+    if (!embedding) {
+        console.warn("[RAG Service] Falha ao gerar embedding para busca global.");
+        return "";
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('match_lesson_chunks', {
+            query_embedding: embedding,
+            match_threshold: 0.5,
+            match_count: limit
+        });
+
+        if (error) {
+            console.error('[RAG Service] Erro RPC match_lesson_chunks (global):', error);
+            return "";
+        }
+
+        if (!data || data.length === 0) {
+            console.log("[RAG Service] Nenhum chunk encontrado para:", query);
+            return "";
+        }
+
+        console.log(`[RAG Service] ${data.length} chunks encontrados.`);
+        return data.map((d: any) => d.content as string).join('\n\n---\n\n');
+    } catch (e) {
+        console.error("[RAG Service] Exceção na busca global RAG:", e);
+        return "";
+    }
+};

@@ -4,6 +4,7 @@ import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Session from './components/Session';
+import LivePracticeSession from './components/LivePracticeSession';
 import PaymentModal from './components/PaymentModal';
 import SubscriptionModal from './components/SubscriptionModal';
 import AvatarChoice from './components/AvatarChoice';
@@ -13,7 +14,7 @@ import { supabase, getUserHistory, updateUserStats, saveSession, getUserProfile,
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<SessionResult[]>([]);
-  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'session' | 'result' | 'avatarChoice'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'session' | 'live_practice' | 'result' | 'avatarChoice'>('landing');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarConfig | null>(null);
   const [lastSessionResult, setLastSessionResult] = useState<SessionResult | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -116,6 +117,11 @@ function App() {
     setCurrentView('session');
   };
 
+  const handleStartLivePractice = (avatar: AvatarConfig) => {
+    setSelectedAvatar(avatar);
+    setCurrentView('live_practice');
+  };
+
   const handleAvatarSelected = async (avatarId: string) => {
     if (!user?.id) return;
     setUser(prev => prev ? ({ ...prev, avatarId }) : null);
@@ -151,7 +157,7 @@ function App() {
   };
 
   const handleSessionComplete = async (
-    result: Omit<SessionResult, 'date' | 'avatarName' | 'durationSeconds'> & { durationSeconds: number },
+    result: Omit<SessionResult, 'date' | 'avatarName' | 'durationSeconds'> & { durationSeconds: number, lessonId?: string | null },
     finalCredits: number
   ) => {
     if (!user?.id || !selectedAvatar) {
@@ -240,6 +246,14 @@ function App() {
             setShowPaymentModal(true);
           }}
         />
+      ) : currentView === 'live_practice' && selectedAvatar ? (
+        <LivePracticeSession
+          user={user}
+          avatar={selectedAvatar}
+          onComplete={handleSessionComplete}
+          onCancel={handleCancelSession}
+          onUpdateCredits={handleUpdateCredits}
+        />
       ) : currentView === 'result' && lastSessionResult ? (
         <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
           <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl max-w-2xl w-full border border-gray-700 text-center animate-fade-in relative overflow-hidden">
@@ -276,6 +290,7 @@ function App() {
           user={user}
           history={history}
           onStartSession={handleStartSession}
+          onStartLivePractice={handleStartLivePractice}
           onLogout={handleLogout}
           onAddCredits={() => setShowPaymentModal(true)}
           onSubscribe={() => setShowSubscriptionModal(true)}

@@ -34,6 +34,7 @@ interface DashboardProps {
   onUpdateProfile: (data: { name: string, surname: string, phone?: string }) => Promise<boolean>;
   onPartialUpdate?: (updates: Partial<User>) => void;
   onChangeAvatar?: () => void;
+  onStartLivePractice?: (avatar: AvatarConfig) => void;
 }
 
 // Importing AVATARS from AvatarChoice
@@ -143,7 +144,7 @@ const SimpleRadarChart: React.FC<{ metrics: { label: string, score: number }[] }
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, onLogout, onAddCredits, onSubscribe, onUpdateProfile, onPartialUpdate, onChangeAvatar }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, onLogout, onAddCredits, onSubscribe, onUpdateProfile, onPartialUpdate, onChangeAvatar, onStartLivePractice }) => {
   const [activeTab, setActiveTab] = useState<'practice' | 'history' | 'profile' | 'feedback'>('practice');
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [showRankList, setShowRankList] = useState(false); // Default hidden
@@ -394,11 +395,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
       alert("Acesso bloqueado: O seu pagamento ainda não foi processado pela operadora do cartão.");
       return;
     }
-    if (hasNoCredits) {
-      alert("Você está sem créditos. Adicione créditos para continuar praticando!");
-      onAddCredits();
-      return;
-    }
     onStartSession(avatar);
   };
 
@@ -452,6 +448,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
       setActiveTab('profile');
     }
   };
+
 
   const TrendIcon = ({ tendencia }: { tendencia: string }) => {
     if (tendencia === 'evoluindo') return <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>;
@@ -541,59 +538,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
         <div className="flex items-center gap-6">
           <div className="flex items-center bg-gray-800 rounded-lg px-4 py-2 border border-gray-700 gap-4 shadow-lg">
             <div className="text-right">
-              <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Créditos</p>
+              <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Prática Livre</p>
               <p className="font-mono font-black text-green-400 text-lg leading-none">{creditsInMinutes} min</p>
             </div>
-            <button onClick={onAddCredits} className="bg-green-600 hover:bg-green-500 text-white text-lg px-2.5 py-1 rounded-lg font-bold shadow-green-900/20 shadow-md transition-all active:scale-95">+</button>
           </div>
           <button onClick={onLogout} className="text-sm px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors">Sair</button>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto space-y-8">
-        {/* Banner de Erro/Pendência de Pagamento */}
-        {(subscriptionErrorStatus || isPending) && (
-          <div className={`${isPending ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-red-500/20 border-red-500/50'} border p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in shadow-xl`}>
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 ${isPending ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'} rounded-full flex items-center justify-center`}>
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-lg">{isPending ? 'Pagamento em Processamento' : 'Problemas no pagamento'}</h3>
-                <p className="text-sm text-gray-300 max-w-2xl leading-relaxed">
-                  {isPending
-                    ? 'O seu pagamento ainda não foi processado ou não foi autorizado pela operadora do cartão. Aguarde a confirmação para liberar o acesso ilimitado.'
-                    : 'Detectamos um problema no seu pagamento. Cancele e refaça a assinatura para normalizar.'}
-                </p>
-              </div>
-            </div>
-            <button onClick={handleBannerAction} className={`${isPending ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-red-600 hover:bg-red-500'} text-white font-bold px-8 py-3 rounded-2xl shadow-xl whitespace-nowrap`}>
-              {isPending && pendingInvoiceUrl ? 'Pagar Fatura' : 'Ir para Perfil'}
-            </button>
-          </div>
-        )}
-
-        {/* Banner de Incentivo à Assinatura (Exibido para usuários Free ou Cancelados) */}
-        {(isFree || isCancelled) && !isPending && !subscriptionErrorStatus && (
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in shadow-xl">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z"></path></svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-lg">{isCancelled ? 'Retome sua evolução!' : 'Pratique sem limites!'}</h3>
-                <p className="text-sm text-gray-300 max-w-2xl leading-relaxed">
-                  {isCancelled
-                    ? 'Sentimos sua falta! Assine novamente o Plano PRO para recuperar seu acesso ilimitado e continuar de onde parou.'
-                    : 'Tenha acesso ilimitado! Assine o Plano PRO agora e garanta 30 horas mensais de conversação por um valor especial.'}
-                </p>
-              </div>
-            </div>
-            <button onClick={onSubscribe} className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-2xl shadow-xl whitespace-nowrap transition-all active:scale-95">
-              {isCancelled ? 'Reassinar agora' : 'Assinar agora'}
-            </button>
-          </div>
-        )}
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 hover:border-blue-500/50 transition-colors">
@@ -619,7 +572,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
 
         {activeTab === 'practice' && (() => {
           const selectedAvatar = AVATARS.find(a => a.id === user.avatarId) || AVATARS[0];
-          const isDisabled = subscriptionErrorStatus || isCancelled || isPending || hasNoCredits;
+          // hasNoCredits shouldn't block normal lessons, only practice
+          const isAppDisabled = subscriptionErrorStatus || isCancelled || isPending;
+          const isPracticeDisabled = isAppDisabled || hasNoCredits;
 
           return (
             <div className="animate-fade-in mt-4 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -640,13 +595,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                       <div className="w-full md:w-auto flex flex-col gap-3 mt-4">
                         <button
                           onClick={() => handleAvatarClick(selectedAvatar)}
-                          className={`w-full md:w-auto px-10 py-4 rounded-2xl font-black text-lg shadow-xl outline-none transition-all active:scale-95 flex items-center justify-center gap-3 ${isDisabled ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25'}`}
+                          className={`w-full md:w-auto px-10 py-4 rounded-2xl font-black text-lg shadow-xl outline-none transition-all active:scale-95 flex items-center justify-center gap-3 ${isAppDisabled ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25'}`}
                         >
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                          {isCancelled ? 'Assinar para Praticar' : isPending ? 'Processando...' : hasNoCredits ? 'Sem Créditos' : 'Continuar Aula'}
+                          {isCancelled ? 'Assinar para Praticar' : isPending ? 'Processando...' : 'Continuar Aula'}
                         </button>
 
-                        {onChangeAvatar && !isDisabled && (
+                        {onStartLivePractice && !isAppDisabled && (
+                          <button
+                            onClick={() => onStartLivePractice(selectedAvatar)}
+                            className={`w-full md:w-auto px-6 py-3 rounded-2xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 border ${isPracticeDisabled ? 'bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed' : 'bg-purple-600/20 text-purple-400 hover:bg-purple-600/40 hover:text-white border-purple-500/30'}`}
+                            title="20 minutos de conversa livre por mês"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            {hasNoCredits ? 'Esgotado (0 min)' : 'Prática Livre (Live)'}
+                          </button>
+                        )}
+                        {onChangeAvatar && !isAppDisabled && (
                           <button
                             onClick={onChangeAvatar}
                             className="w-full md:w-auto px-6 py-3 rounded-2xl font-bold text-sm border-2 border-gray-600 text-gray-300 hover:border-gray-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
@@ -656,7 +621,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                           </button>
                         )}
                       </div>
-                      {isDisabled && (
+                      {isAppDisabled && (
                         <p className="text-xs font-medium text-red-400 mt-4 uppercase tracking-widest text-center w-full md:text-left">
                           Acesso temporariamente bloqueado
                         </p>
@@ -1042,17 +1007,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                 {saveMessage && <p className={`text-sm p-3 rounded-xl border ${saveMessage.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>{saveMessage.text}</p>}
                 <button type="submit" disabled={isSaving} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50">{isSaving ? "Salvando..." : "Salvar Alterações"}</button>
               </form>
-              <div className="bg-gray-800 p-8 rounded-3xl border border-gray-700 space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold">Assinatura</h3>
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${user.subscription && user.subscription !== 'free' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-700 text-gray-400'}`}>{user.subscription && user.subscription !== 'free' ? (isCancelled ? 'CANCELADA' : (subscriptionErrorStatus ? `Problema` : (isPending ? 'PROCESSANDO' : 'Ativa'))) : 'Free'}</span>
-                </div>
-                {user.subscription && user.subscription !== 'free' && !isCancelled ? (
-                  <button onClick={() => setShowCancelConfirm(true)} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold py-3 rounded-xl border border-red-500/20 transition-all">Cancelar Assinatura Atual</button>
-                ) : (
-                  <button onClick={onSubscribe} className="w-full bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 font-bold py-3 rounded-xl border border-blue-500/20 transition-all">Assinar Agora</button>
-                )}
-              </div>
             </div>
           )
         }
