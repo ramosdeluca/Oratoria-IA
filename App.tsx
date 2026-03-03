@@ -6,13 +6,14 @@ import Dashboard from './components/Dashboard';
 import Session from './components/Session';
 import PaymentModal from './components/PaymentModal';
 import SubscriptionModal from './components/SubscriptionModal';
+import AvatarChoice from './components/AvatarChoice';
 import { User, AvatarConfig, SessionResult, RANKS } from './types';
 import { supabase, getUserHistory, updateUserStats, saveSession, getUserProfile, updateUserProfile } from './services/supabase';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<SessionResult[]>([]);
-  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'session' | 'result'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'session' | 'result' | 'avatarChoice'>('landing');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarConfig | null>(null);
   const [lastSessionResult, setLastSessionResult] = useState<SessionResult | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -56,6 +57,8 @@ function App() {
 
             if (hashIsRecovery || isRecovering) {
               setCurrentView('login');
+            } else if (!profile.avatarId) {
+              setCurrentView('avatarChoice');
             } else {
               setCurrentView('dashboard');
             }
@@ -88,7 +91,12 @@ function App() {
       const userHistory = await getUserHistory(userData.id);
       setHistory(userHistory);
     }
-    setCurrentView('dashboard');
+
+    if (!userData.avatarId) {
+      setCurrentView('avatarChoice');
+    } else {
+      setCurrentView('dashboard');
+    }
 
     if (userData.subscription === 'CANCELLED' || userData.subscriptionStatus === 'CANCELLED') {
       setShowSubscriptionModal(true);
@@ -106,6 +114,13 @@ function App() {
   const handleStartSession = (avatar: AvatarConfig) => {
     setSelectedAvatar(avatar);
     setCurrentView('session');
+  };
+
+  const handleAvatarSelected = async (avatarId: string) => {
+    if (!user?.id) return;
+    setUser(prev => prev ? ({ ...prev, avatarId }) : null);
+    await updateUserStats(user.id, { avatarId });
+    setCurrentView('dashboard');
   };
 
   const handleUpdateCredits = async (remainingMinutes: number) => {
@@ -207,6 +222,10 @@ function App() {
     return <Login onLogin={handleLogin} initialMode={isRecovering ? 'updatePassword' : 'login'} />;
   }
 
+  if (currentView === 'avatarChoice') {
+    return <AvatarChoice user={user} onAvatarSelected={handleAvatarSelected} />;
+  }
+
   return (
     <>
       {currentView === 'session' && selectedAvatar ? (
@@ -232,16 +251,16 @@ function App() {
             <p className="text-gray-400 mb-8">Sua prática foi avaliada e gravada.</p>
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Vocabulário</div>
-                <div className="text-xl font-bold text-purple-400">{lastSessionResult.vocabularyScore}%</div>
+                <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Confiança</div>
+                <div className="text-xl font-bold text-purple-400">{lastSessionResult.confidenceScore}%</div>
               </div>
               <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Gramática</div>
-                <div className="text-xl font-bold text-pink-400">{lastSessionResult.grammarScore}%</div>
+                <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Clareza</div>
+                <div className="text-xl font-bold text-pink-400">{lastSessionResult.clarityScore}%</div>
               </div>
               <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700">
-                <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Pronúncia</div>
-                <div className="text-xl font-bold text-emerald-400">{lastSessionResult.pronunciationScore}%</div>
+                <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Persuasão</div>
+                <div className="text-xl font-bold text-emerald-400">{lastSessionResult.persuasionScore}%</div>
               </div>
             </div>
             <div className="bg-blue-900/20 p-6 rounded-2xl text-left mb-8 border border-blue-500/20">
@@ -262,6 +281,12 @@ function App() {
           onSubscribe={() => setShowSubscriptionModal(true)}
           onUpdateProfile={handleUpdateProfile}
           onPartialUpdate={handlePartialUserUpdate}
+          onChangeAvatar={() => {
+            if (user?.id) {
+              handlePartialUserUpdate({ avatarId: undefined });
+            }
+            setCurrentView('avatarChoice');
+          }}
         />
       )}
 

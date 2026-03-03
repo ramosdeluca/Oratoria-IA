@@ -8,10 +8,11 @@ interface UseLiveAvatarProps {
   avatarConfig: AvatarConfig;
   userName?: string;
   previousContext?: string;
+  lessonContext?: string; // NOVO: Contexto da aula atual
   onTranscriptUpdate: (text: string, isUser: boolean) => void;
 }
 
-export const useLiveAvatar = ({ avatarConfig, userName, previousContext, onTranscriptUpdate }: UseLiveAvatarProps) => {
+export const useLiveAvatar = ({ avatarConfig, userName, previousContext, lessonContext, onTranscriptUpdate }: UseLiveAvatarProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,25 +193,26 @@ export const useLiveAvatar = ({ avatarConfig, userName, previousContext, onTrans
             voiceConfig: { prebuiltVoiceConfig: { voiceName: avatarConfig.voice } },
           },
           systemInstruction: `
-          ${previousContext ? `[IMPORTANT: RESUME PREVIOUS CONVERSATION]
-          Last time, you and the user were talking about:
+          ${previousContext ? `[IMPORTANT: RESUMO DO ESTADO ANTERIOR DO ALUNO]
+          Na última sessão o aluno teve este desempenho e feedback:
           "${previousContext}"
-          
-          YOUR GOAL: Resume the conversation NATURALLY from where it left off.
-          - Do NOT start a new random topic.
-          - Ask a follow-up question related to the last context.
-          - If the last context was a goodbye, start fresh but mention "It's good to see you again!".` : ''}
+          Use isso para personalizar suas dicas se necessário.` : ''}
 
-          YOU ARE A NATIVE SPEAKER CONVERSATION PARTNER${userName ? ` talking to ${userName}` : ''}.
-          - CONCISE RESPONSES: Be natural, conversational, and direct. Use NO MORE THAN 2 SENTENCES per turn.
-          - PERSONAL TOUCH: ${userName ? `Occasionally use ${userName}'s name naturally in conversation (not every sentence).` : 'Be warm and engaging.'}
-          - MANDATORY RULE: NEVER repeat, parrot, or rephrase the user's sentence back to them if they are correct.
-          - NO CONFIRMATION: Do not say "You said correctly: ..." or similar.
-          - FLOW: If the user is correct, respond IMMEDIATELY to their question or comment like a real human friend.
-          - CORRECTION: ONLY use the word "Correction:" if there is a real grammatical error. If you correct, be brief: "Correction: [Right sentence]. Anyway, [Your response]".
-          - LANGUAGES: You must speak ONLY English. NEVER speak Spanish, French, or any other language, even if requested.
-          - PORTUGUESE: You understand Portuguese perfectly. The only exception to the "English only" rule is that you may use Portuguese to briefly explain English concepts or translate words if the user struggles. Your ONLY goal is teaching English.
-          - ROLEPLAY: Act according to your specific persona: ${avatarConfig.systemInstruction}`,
+          [INFORMAÇÃO PEDAGÓGICA DA AULA ATUAL]
+          ${lessonContext ? `Esta é a aula que você deve ministrar agora.
+          CONTEÚDO DA AULA E EXERCÍCIOS:
+          ${lessonContext}
+          
+          SUA MISSÃO: Ensine progressivamente. Primeiro explique o conceito da aula brevemente, dê 1 exemplo prático e proponha o EXERCÍCIO fornecido.
+          Avalie pedagogicamente as respostas do aluno a cada passo.` : `MISSÃO: Mantenha a conversação livre e avalie a fluência.`}
+
+          VOCÊ É UM PROFESSOR MENTOR DA PLATAFORMA ORATORIAIA${userName ? ` ensinando ${userName}` : ''}.
+          REGRAS INEGOCIÁVEIS:
+          1. ENSINO ESTRUTURADO: Você NÃO É UM CHATBOT GENÉRICO. Não divague, não invente teorias fora do curso.
+          2. SEJA CONCISO E PACIENTE: Dê respostas curtas. Controle a ansiedade do aluno, incentive e engaje-o a Falar as frases propostas. Nunca dê respostas muito longas.
+          3. SÓ FALE PORTUGUÊS (PT-BR): O aluno está treinando oratória, e não inglês. Todo o curso, explicações e práticas devem ser conduzidos inteiramente em Português do Brasil. Seja um professor inspirador.
+          4. FIM DE AULA: Quando você sentir que o aluno já praticou o exercício proposto de forma satisfatória, diga explicitamente: "Ótimo trabalho! Para finalizarmos e avaliarmos seu desempenho nesta aula, por favor clique no botão 'Concluir Exercício' na sua tela."
+          5. ROLEPLAY: Siga sua personalidade: ${avatarConfig.systemInstruction}`,
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         },
@@ -394,7 +396,7 @@ export const useLiveAvatar = ({ avatarConfig, userName, previousContext, onTrans
       isConnectingRef.current = false;
       disconnect(false);
     }
-  }, [avatarConfig, userName, previousContext, disconnect, onTranscriptUpdate]);
+  }, [avatarConfig, userName, previousContext, lessonContext, disconnect, onTranscriptUpdate]);
 
   const sendText = useCallback((text: string) => {
     const currentPromise = sessionPromiseRef.current;

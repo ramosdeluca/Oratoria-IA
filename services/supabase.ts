@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, SessionResult, DetailedFeedback } from '../types';
 
-const supabaseUrl = (process.env.SUPABASE_URL || 'https://ebjihooaxlqulzrlyoyc.supabase.co').trim();
-const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViamlob29heGxxdWx6cmx5b3ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNTAxMDgsImV4cCI6MjA4MTcyNjEwOH0.qAvWao3bj2CpOpkI9HK558DuuG6_kGOMDMtuYsEAH-c').trim();
+const supabaseUrl = (process.env.SUPABASE_URL || 'https://bcsbtlhgxquowocqmwfw.supabase.co').trim();
+const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjc2J0bGhneHF1b3dvY3Ftd2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NTE2MTIsImV4cCI6MjA4ODAyNzYxMn0.9W0dNXXQKyVXI6njQcb0Wza0nsq2OgFq-WIUtavcvho').trim();
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -59,7 +59,8 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
       cpf: profileData.cpf,
       phone: profileData.phone,
       termsAcceptedAt: profileData.terms_accepted_at,
-      qtdFeedbacks: Number(profileData.qtd_feedbacks || 0)
+      qtdFeedbacks: Number(profileData.qtd_feedbacks || 0),
+      avatarId: profileData.avatar_id
     } as User;
   } catch (err) {
     console.error('[Supabase] Erro ao carregar perfil:', err);
@@ -84,12 +85,10 @@ export const saveSession = async (userId: string, session: SessionResult) => {
     user_id: userId,
     avatar_name: session.avatarName,
     overall_score: Number(session.overallScore),
-    vocabulary_score: Number(session.vocabularyScore),
-    grammar_score: Number(session.grammarScore),
-    pronunciation_score: Number(session.pronunciationScore),
-    // coherence_score: Number(session.coherenceScore || 0), // Removido temporariamente (coluna inexistente)
-    // confidence_score: Number(session.confidenceScore || 0), // Removido temporariamente (coluna inexistente)
-    fluency_rating: session.fluencyRating,
+    confidence_score: Number(session.confidenceScore),
+    clarity_score: Number(session.clarityScore),
+    persuasion_score: Number(session.persuasionScore),
+    posture_score: Number(session.postureScore),
     feedback: session.feedback,
     duration_seconds: Math.floor(session.durationSeconds || 0),
     transcript: session.transcript || "",
@@ -122,6 +121,7 @@ export const updateUserStats = async (userId: string, updates: Partial<User>) =>
   if ((updates as any).name) dbUpdates.name = (updates as any).name;
   if ((updates as any).surname) dbUpdates.surname = (updates as any).surname;
   if ((updates as any).username) dbUpdates.username = (updates as any).username;
+  if (updates.avatarId !== undefined) dbUpdates.avatar_id = updates.avatarId;
 
   const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', userId);
   return !error;
@@ -130,7 +130,7 @@ export const updateUserStats = async (userId: string, updates: Partial<User>) =>
 export const getUserHistory = async (userId: string): Promise<SessionResult[]> => {
   // Remove colunas que podem não existir ainda no banco para evitar erro 400
   const { data, error } = await supabase.from('sessions')
-    .select('user_id, avatar_name, overall_score, vocabulary_score, grammar_score, pronunciation_score, fluency_rating, feedback, duration_seconds, transcript, date')
+    .select('user_id, avatar_name, overall_score, confidence_score, clarity_score, persuasion_score, posture_score, feedback, duration_seconds, transcript, date')
     .eq('user_id', userId)
     .order('date', { ascending: false });
 
@@ -142,12 +142,10 @@ export const getUserHistory = async (userId: string): Promise<SessionResult[]> =
   return (data || []).map(s => ({
     avatarName: s.avatar_name,
     overallScore: s.overall_score,
-    vocabularyScore: s.vocabulary_score,
-    grammarScore: s.grammar_score,
-    pronunciationScore: s.pronunciation_score,
-    coherenceScore: 0, // Default sem erro
-    confidenceScore: 0, // Default sem erro
-    fluencyRating: s.fluency_rating,
+    confidenceScore: s.confidence_score || 0,
+    clarityScore: s.clarity_score || 0,
+    persuasionScore: s.persuasion_score || 0,
+    postureScore: s.posture_score || 0,
     feedback: s.feedback,
     durationSeconds: s.duration_seconds,
     transcript: s.transcript,

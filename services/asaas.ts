@@ -5,12 +5,12 @@ const getProxyBaseUrl = () => {
   const { hostname, protocol } = window.location;
   // Detecção robusta de ambiente local
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-  
+
   if (isLocal) {
     // Protocolo dinâmico para evitar erros de Mixed Content
     return `${protocol}//${hostname}:3001/api`;
   }
-  
+
   // URL da API de produção (Proxy Seguro)
   return 'https://asaas-api-segura.vercel.app/api';
 };
@@ -50,7 +50,7 @@ const fetchAPI = async (targetUrl: string, options: RequestInit) => {
     });
 
     const contentType = response.headers.get("content-type");
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Erro ${response.status}: ${errorText || 'Erro no servidor'}`);
@@ -76,11 +76,11 @@ const fetchAPI = async (targetUrl: string, options: RequestInit) => {
   }
 };
 
-export const generatePixCheckout = async (userData: { 
-  name: string; 
-  email: string; 
-  cpf: string; 
-  value: number; 
+export const generatePixCheckout = async (userData: {
+  name: string;
+  email: string;
+  cpf: string;
+  value: number;
   customerIdAsaas?: string;
 }): Promise<CheckoutResponse> => {
   const payload = {
@@ -88,7 +88,7 @@ export const generatePixCheckout = async (userData: {
     cpfCnpj: userData.cpf,
     emailCliente: userData.email,
     valorCreditos: userData.value,
-    descricao: "Recarga de Minutos - PratiquePRO",
+    descricao: "Recarga de Minutos - OratoriaIA",
     customer_id_asaas: userData.customerIdAsaas || ''
   };
 
@@ -100,11 +100,11 @@ export const generatePixCheckout = async (userData: {
   return mapAsaasResponse(rawData);
 };
 
-export const generateSubscriptionCheckout = async (userData: { 
-  name: string; 
-  email: string; 
-  cpf: string; 
-  value: number; 
+export const generateSubscriptionCheckout = async (userData: {
+  name: string;
+  email: string;
+  cpf: string;
+  value: number;
   customerIdAsaas?: string;
 }): Promise<CheckoutResponse> => {
   const payload = {
@@ -169,7 +169,7 @@ const findKeyDeep = (obj: any, targetKey: string): any => {
 
 const mapAsaasResponse = (rawData: any): CheckoutResponse => {
   const base = Array.isArray(rawData) ? rawData[0] : rawData;
-  
+
   const paymentid = findKeyDeep(base, 'paymentid') || findKeyDeep(base, 'paymentId') || findKeyDeep(base, 'id') || '';
   const invoiceUrl = findKeyDeep(base, 'paymentUrl') || findKeyDeep(base, 'invoiceUrl') || findKeyDeep(base, 'invoiceURL') || findKeyDeep(base, 'invoice_url') || '';
   const subscriptionId = findKeyDeep(base, 'subscription') || findKeyDeep(base, 'subscriptionId') || '';
@@ -194,8 +194,8 @@ const mapAsaasResponse = (rawData: any): CheckoutResponse => {
 export const checkPaymentStatus = async (paymentId: string): Promise<boolean> => {
   if (!paymentId) return false;
   try {
-    const result = await fetchAPI(`${API_BASE_URL}/checar-status?id=${paymentId}`, { 
-      method: 'GET' 
+    const result = await fetchAPI(`${API_BASE_URL}/checar-status?id=${paymentId}`, {
+      method: 'GET'
     });
     const status = result.status || (result.data && result.data.status);
     return ['RECEIVED', 'CONFIRMED', 'PAID', 'RECEIVED_IN_CASH'].includes(String(status).toUpperCase());

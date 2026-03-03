@@ -124,7 +124,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ user, onClose, on
         <div className="p-8">
           {step === 1 && (
             <div className="space-y-6 text-center">
-              <h2 className="text-2xl font-bold text-white">Plano Mensal PratiquePRO</h2>
+              <h2 className="text-2xl font-bold text-white">Plano Mensal OratoriaIA</h2>
               <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-700">
                 <p className="text-4xl font-black text-blue-400">R$ 49,90</p>
                 <p className="text-sm text-gray-400 mt-2">300 minutos de Conversação</p>

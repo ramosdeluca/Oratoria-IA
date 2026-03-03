@@ -53,7 +53,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialMode }) => {
       if (resolvedEmail) {
         loginEmail = resolvedEmail;
       } else {
-        loginEmail = `${loginEmail.toLowerCase()}@pratiquepro.com`;
+        // Força minúsculas e remove espaços ao verificar email local
+        loginEmail = `${loginEmail.toLowerCase()}@oratoriaia.com`;
       }
     }
 
@@ -223,7 +224,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialMode }) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4 py-12 text-white">
       <div className="max-w-md w-full space-y-8 bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
         <div className="text-center">
-          <h2 className="text-3xl font-black text-blue-400">PratiquePRO</h2>
+          {/* Logo / Title Area */}
+          <h2 className="text-3xl font-black text-blue-400">OratoriaIA</h2>
           <p className="mt-2 text-sm text-gray-400">
             {mode === 'login' ? 'Bem-vindo de volta' : mode === 'register' ? 'Crie sua conta gratuita' : mode === 'reset' ? 'Redefinir senha' : 'Crie sua nova senha'}
           </p>

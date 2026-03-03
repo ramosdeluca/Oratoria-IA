@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, RANKS, AvatarConfig, AvatarVoice, SessionResult, DetailedFeedback, MetricDetail } from '../types';
+import { User, RANKS, AvatarConfig, AvatarVoice, SessionResult, DetailedFeedback, MetricDetail, Course, CourseModule, Lesson, Exercise } from '../types';
 import {
   cancelUserSubscription,
   getPendingSubscriptionPayment,
@@ -11,6 +11,18 @@ import {
 } from '../services/supabase';
 import { cancelSubscription } from '../services/asaas';
 import { generateDetailedFeedback } from '../services/gemini';
+import { getStudentProgress, getNextLessonForUser } from '../services/progressService';
+import { getFirstCourse, getCourseModules, getModuleLessons } from '../services/courseService';
+import { AVATARS } from './AvatarChoice';
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
 
 interface DashboardProps {
   user: User;
@@ -21,82 +33,10 @@ interface DashboardProps {
   onSubscribe: () => void;
   onUpdateProfile: (data: { name: string, surname: string, phone?: string }) => Promise<boolean>;
   onPartialUpdate?: (updates: Partial<User>) => void;
+  onChangeAvatar?: () => void;
 }
 
-const AVATARS: AvatarConfig[] = [
-  {
-    name: 'Sarah',
-    accent: 'American',
-    voice: AvatarVoice.Kore,
-    systemInstruction: `PERSONALITY: Patient, kind, and encouraging American teacher for beginners.
-    STYLE: Simple, slow, and clear.
-    VOCABULARY: Use basic English. Avoid complex idioms.
-    PEDAGOGY: 
-    - Always be positive! Use phrases like "Good try!", "Almost perfect!", "You're doing great!".
-    - CONTEXTUAL CORRECTION: If the user makes a mistake, provide a "Correction: [Correct Sentence]" and briefly explain WHY in simple terms (e.g., "We use 'am' with 'I'").
-    - FLUIDITY: NEVER stop the conversation after a correction. Correct the user, give the simple explanation, and then IMMEDIATELY continue the conversation or answer their question.
-    - RESPONSIVENESS: Acknowledge greetings (e.g., "I'm doing great, thank you!") before moving to a new topic.
-    - VARIETY: Use different conversation starters (hobbies, weather, food, daily routine).
-    - SENTENCES: Keep them short and easy to understand.`,
-    description: 'Básico - Paciente e didática, Sarah ajuda iniciantes a ganhar confiança com vocabulário simples e repetição de frases.',
-    color: 'bg-blue-400',
-    avatarImage: '/Sarahavatar.png',
-    imagePosition: 'object-top',
-    videoUrl: ''
-  },
-  {
-    name: 'Léo',
-    accent: 'American',
-    voice: AvatarVoice.Puck,
-    systemInstruction: `PERSONALITY: Friendly American athlete. 
-    STYLE: Casual and direct.
-    RULE: NEVER repeat the user's sentence. If they speak well, just keep the chat going. Use "Correction:" only if they fail grammar completely.`,
-    description: 'Avançado - Um cara legal que adora esportes. Ele conversa naturalmente e te ajuda a corrigir erros de forma direta e sem enrolação.',
-    color: 'bg-orange-500',
-    avatarImage: '/Leoavatar.png',
-    imagePosition: 'object-top',
-    videoUrl: ''
-  },
-  {
-    name: 'Sophia',
-    accent: 'American',
-    voice: AvatarVoice.Zephyr,
-    systemInstruction: `PERSONALITY: Sophisticated professional mentor.
-    STYLE: Warm, clear, and high-level.
-    RULE: Do not parrot the user. Respond to the ideas, not the grammar, unless there is an error to fix using "Correction:".`,
-    description: 'Avançado - Profissional e acolhedora. Ela foca no diálogo sobre carreira e é rigorosa em manter a conversa fluindo com qualidade.',
-    color: 'bg-purple-500',
-    avatarImage: '/sophiaavatar.png',
-    imagePosition: 'object-[50%_20%]',
-    videoUrl: ''
-  },
-  {
-    name: 'James',
-    accent: 'British',
-    voice: AvatarVoice.Fenrir,
-    systemInstruction: `PERSONALITY: Intelligent British gentleman.
-    STYLE: Witty and polite.
-    RULE: Strictly ignore correct sentences and move forward. Only use "Correction:" for significant blunders.`,
-    description: 'Avançado - Sotaque britânico polido. Ele engaja em conversas inteligentes e corrige rigorosamente seus erros para você soar impecável.',
-    color: 'bg-emerald-600',
-    avatarImage: '/Jamesavatar.png',
-    imagePosition: 'object-[50%_20%]',
-    videoUrl: ''
-  },
-  {
-    name: 'Maya',
-    accent: 'American',
-    voice: AvatarVoice.Kore,
-    systemInstruction: `PERSONALITY: Energetic, trendy Gen-Z friend.
-    STYLE: Fast, lots of slang, very social.
-    RULE: NO REPEATING. Just chat like we are on a call. Use "Correction:" if I say something really weird.`,
-    description: 'Avançado - Energia pura! Ela fala como uma jovem nativa, usa gírias e não deixa passar nenhum erro de gramática enquanto fofoca.',
-    color: 'bg-rose-500',
-    avatarImage: '/Mayaavatar.png',
-    imagePosition: 'object-[50%_20%]',
-    videoUrl: ''
-  }
-];
+// Importing AVATARS from AvatarChoice
 
 const SimpleLineChart: React.FC<{ data: { data: string, score: number }[], color: string }> = ({ data, color }) => {
   if (!data || !Array.isArray(data) || data.length < 2) {
@@ -203,7 +143,7 @@ const SimpleRadarChart: React.FC<{ metrics: { label: string, score: number }[] }
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, onLogout, onAddCredits, onSubscribe, onUpdateProfile, onPartialUpdate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, onLogout, onAddCredits, onSubscribe, onUpdateProfile, onPartialUpdate, onChangeAvatar }) => {
   const [activeTab, setActiveTab] = useState<'practice' | 'history' | 'profile' | 'feedback'>('practice');
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [showRankList, setShowRankList] = useState(false); // Default hidden
@@ -257,6 +197,67 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
   const [detailedFeedback, setDetailedFeedback] = useState<DetailedFeedback | null>(null);
   const [lastEvaluatedSessionDate, setLastEvaluatedSessionDate] = useState<string | null>(null);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
+
+  // Pedagogical Progress States
+  const [totalModules, setTotalModules] = useState(0);
+  const [completedModules, setCompletedModules] = useState(0);
+  const [totalLessons, setTotalLessons] = useState(0);
+  const [completedLessons, setCompletedLessons] = useState(0);
+  const [courseProgress, setCourseProgress] = useState(0);
+
+  const [nextLessonData, setNextLessonData] = useState<{
+    course: Course,
+    module: CourseModule,
+    lesson: Lesson,
+    exercise: Exercise | null
+  } | null>(null);
+
+  const [modulesList, setModulesList] = useState<CourseModule[]>([]);
+  const [lessonsByModule, setLessonsByModule] = useState<Record<string, Lesson[]>>({});
+  const [completedLessonIdsList, setCompletedLessonIdsList] = useState<Set<string>>(new Set());
+  const [isLoadingCurriculum, setIsLoadingCurriculum] = useState(true);
+
+  useEffect(() => {
+    if (user.id) {
+      (async () => {
+        try {
+          const progress = await getStudentProgress(user.id);
+          const c = await getFirstCourse();
+          if (c) {
+            const modules = await getCourseModules(c.id);
+            setTotalModules(modules.length);
+            setModulesList(modules);
+            let lessonsCount = 0;
+            let cModulesCount = 0;
+            const completedIds = new Set(progress.filter(p => p.completed).map(p => p.lesson_id));
+            setCompletedLessonIdsList(completedIds);
+            const lessonsMap: Record<string, Lesson[]> = {};
+
+            for (const mod of modules) {
+              const lessons = await getModuleLessons(mod.id);
+              lessonsMap[mod.id] = lessons;
+              lessonsCount += lessons.length;
+              const allLessonsCompleted = lessons.length > 0 && lessons.every(l => completedIds.has(l.id));
+              if (allLessonsCompleted) cModulesCount++;
+            }
+            setLessonsByModule(lessonsMap);
+            setTotalLessons(lessonsCount);
+            setCompletedModules(cModulesCount);
+            setCompletedLessons(completedIds.size);
+            setCourseProgress(lessonsCount > 0 ? Math.round((completedIds.size / lessonsCount) * 100) : 0);
+          }
+
+          const nextData = await getNextLessonForUser(user.id);
+          setNextLessonData(nextData);
+
+        } catch (err) {
+          console.error("[Dashboard] Error fetching pedagogical stats:", err);
+        } finally {
+          setIsLoadingCurriculum(false);
+        }
+      })();
+    }
+  }, [user.id]);
 
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
@@ -459,17 +460,54 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
   };
 
   const radarMetrics = useMemo(() => {
-    if (!detailedFeedback || !detailedFeedback.metricas_atuais) return [];
+    if (!detailedFeedback) return null;
     const m = detailedFeedback.metricas_atuais;
     return [
-      { label: 'Fluência', score: Number(m.fluencia?.score) || 50 },
-      { label: 'Vocabulário', score: Number(m.vocabulario?.score) || 50 },
-      { label: 'Gramática', score: Number(m.precisao_gramatical?.score) || 50 },
-      { label: 'Pronúncia', score: Number(m.clareza_pronuncia?.score) || 50 },
-      { label: 'Coerência', score: Number(m.coerencia?.score) || 50 },
-      { label: 'Confiança', score: Number(m.confianca?.score) || 50 },
-    ].map(item => ({ ...item, score: item.score === 0 ? 50 : item.score }));
+      { label: 'Confiança', score: m.confianca?.score || 0 },
+      { label: 'Clareza', score: m.clareza?.score || 0 },
+      { label: 'Persuasão', score: m.persuasao?.score || 0 },
+      { label: 'Postura', score: m.postura?.score || 0 },
+      { label: 'Coerência', score: m.coerencia?.score || 0 },
+      { label: 'Fluência', score: m.fluencia?.score || 0 },
+    ];
   }, [detailedFeedback]);
+
+  interface HistoricalDataPoint {
+    data: string;
+    score: number;
+  }
+
+  const MetricLineChart: React.FC<{
+    title: string;
+    data: HistoricalDataPoint[] | undefined;
+    color: string;
+  }> = ({ title, data, color }) => {
+    if (!data || !Array.isArray(data) || data.length < 2) return null;
+    const formattedData = [...data].reverse().map(d => ({
+      ...d,
+      data: new Date(d.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    }));
+
+    return (
+      <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700/50">
+        <h4 className="text-white font-bold mb-4">{title}</h4>
+        <div className="h-48 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={formattedData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <Line type="monotone" dataKey="score" stroke={color} strokeWidth={3} dot={{ r: 4, fill: color }} />
+              <CartesianGrid stroke="#374151" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="data" stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '0.5rem', color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
@@ -497,7 +535,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
 
       <header className="flex flex-col md:flex-row justify-between items-center mb-8 max-w-6xl mx-auto gap-4">
         <div className="flex flex-col items-center md:items-start">
-          <h1 className="text-2xl font-bold text-blue-400">PratiquePRO</h1>
+          <h1 className="text-2xl font-bold text-blue-400">OratoriaIA</h1>
           <p className="text-xs text-gray-400">Olá, <span className="text-white font-bold">{user.name}</span>! Boas-vindas à sua prática.</p>
         </div>
         <div className="flex items-center gap-6">
@@ -557,84 +595,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
           </div>
         )}
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700">
-            <h3 className="text-gray-400 text-xs uppercase mb-1">Pontos Totais</h3>
-            <p className="text-4xl font-extrabold text-yellow-400">{currentPoints}</p>
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 hover:border-blue-500/50 transition-colors">
+            <h3 className="text-gray-400 text-xs uppercase mb-1">Módulos Concluídos</h3>
+            <p className="text-2xl sm:text-4xl font-extrabold text-blue-400">{completedModules} <span className="text-sm sm:text-lg text-gray-500">/ {totalModules}</span></p>
           </div>
-          <div
-            onClick={() => setShowRankList(!showRankList)}
-            className="bg-gray-800 p-6 rounded-2xl border border-gray-700 flex flex-col justify-between cursor-pointer hover:border-blue-500/50 transition-colors group relative"
-          >
-            <div>
-              <div className="flex justify-between items-start">
-                <h3 className="text-gray-400 text-xs uppercase mb-1">Sua Patente</h3>
-                <svg className={`w-4 h-4 text-gray-500 transition-transform ${showRankList ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
-              <p className="text-2xl font-bold group-hover:text-blue-400 transition-colors notranslate" translate="no">{currentRank.name}</p>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex justify-between items-end mb-1">
-                <span className="text-[10px] text-gray-500 font-bold uppercase">Progresso</span>
-                {nextRank && (
-                  <span className="text-[10px] text-gray-400 font-medium">
-                    {currentPoints} / {nextRank.minPoints}
-                  </span>
-                )}
-              </div>
-              <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden border border-gray-700/50">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                  style={{ width: `${progressPercentage}%` }}
-                ></div>
-              </div>
-              {nextRank ? (
-                <p className="text-[9px] text-gray-500 mt-1.5 text-right font-medium">Faltam {pointsToNext} pontos para <span className="text-blue-400 font-bold">{nextRank.name}</span></p>
-              ) : (
-                <p className="text-[9px] text-yellow-400 mt-1.5 text-right font-bold uppercase tracking-widest">Nível Máximo Alcançado!</p>
-              )}
-            </div>
+          <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 hover:border-green-500/50 transition-colors">
+            <h3 className="text-gray-400 text-xs uppercase mb-1">Aulas / Exercícios</h3>
+            <p className="text-2xl sm:text-4xl font-extrabold text-green-400">{completedLessons} <span className="text-sm sm:text-lg text-gray-500">/ {totalLessons}</span></p>
           </div>
-          <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700">
-            <h3 className="text-gray-400 text-xs uppercase mb-1">Aulas Concluídas</h3>
-            <p className="text-4xl font-extrabold">{user.sessionsCompleted}</p>
+          <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 hover:border-purple-500/50 transition-colors">
+            <h3 className="text-gray-400 text-xs uppercase mb-1">Progresso Geral</h3>
+            <p className="text-2xl sm:text-4xl font-extrabold text-purple-400">{courseProgress}%</p>
           </div>
         </section>
-
-        {/* Rank Progression Section */}
-        {/* Rank Progression Section - Compact */}
-        {showRankList && (
-          <section className="bg-gray-800 p-3 rounded-xl border border-gray-700 animate-fade-in">
-            <h3 className="text-gray-400 text-[10px] font-bold uppercase mb-2 tracking-widest">Jornada de Evolução</h3>
-            <div className="relative">
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
-                {RANKS.map((rank, idx) => {
-                  const isAchieved = currentPoints >= rank.minPoints;
-                  const isCurrent = currentRank.name === rank.name;
-                  const isNext = nextRank?.name === rank.name;
-
-                  return (
-                    <div key={rank.name} className={`relative flex flex-col items-center md:items-start p-2 rounded-lg border transition-all ${isCurrent ? 'bg-blue-600/10 border-blue-500/50 z-10' : isAchieved ? 'bg-gray-800/50 border-transparent opacity-60' : 'bg-transparent border-transparent opacity-40'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1.5 z-10 border ${isCurrent ? 'bg-blue-600 border-blue-400 text-white' : isAchieved ? 'bg-green-600/20 border-green-500/50 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-600'}`}>
-                        {isAchieved && !isCurrent ? (
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                        ) : (
-                          <span className="text-[10px] font-bold">{idx + 1}</span>
-                        )}
-                      </div>
-
-                      <h4 className={`font-bold text-xs ${isCurrent ? 'text-blue-400' : isAchieved ? 'text-gray-300' : 'text-gray-500'}`}>{rank.name}</h4>
-                      <p className="text-[9px] text-gray-500 font-medium">{rank.minPoints} pts</p>
-
-                      {isCurrent && <div className="mt-1 text-[8px] px-1.5 py-px bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full font-bold uppercase tracking-wide">Atual</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
 
         <div className="flex flex-wrap gap-4 border-b border-gray-700 pb-2">
           <button onClick={() => setActiveTab('practice')} className={`pb-2 text-lg font-medium transition-all ${activeTab === 'practice' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}>Praticar</button>
@@ -643,32 +617,105 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
           <button onClick={() => setActiveTab('profile')} className={`pb-2 text-lg font-medium transition-all ${activeTab === 'profile' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}>Perfil</button>
         </div>
 
-        {activeTab === 'practice' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
-            {AVATARS.map((avatar) => {
-              const isDisabled = subscriptionErrorStatus || isCancelled || isPending || hasNoCredits;
-              return (
-                <div
-                  key={avatar.name}
-                  className={`bg-gray-800 rounded-3xl overflow-hidden border border-gray-700 transition-all group cursor-pointer ${isDisabled ? 'opacity-50 grayscale' : 'hover:border-blue-500/50'}`}
-                  onClick={() => handleAvatarClick(avatar)}
-                >
-                  <div className="h-64 overflow-hidden relative">
-                    <img src={avatar.avatarImage} className={`w-full h-full object-cover transition-transform duration-500 ${isDisabled ? '' : 'group-hover:scale-110'} ${avatar.imagePosition || 'object-center'}`} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-60"></div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2 notranslate" translate="no">{avatar.name}</h3>
-                    <p className="text-xs text-gray-400 line-clamp-2 h-8">{avatar.description}</p>
-                    <button className={`mt-4 w-full text-white py-3 rounded-xl text-sm font-bold shadow-lg transition-all whitespace-nowrap ${isDisabled ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-500'}`}>
-                      {isCancelled ? 'Assinar' : isPending ? 'Processando' : hasNoCredits ? 'Sem Créditos' : 'Praticar'}
-                    </button>
+        {activeTab === 'practice' && (() => {
+          const selectedAvatar = AVATARS.find(a => a.id === user.avatarId) || AVATARS[0];
+          const isDisabled = subscriptionErrorStatus || isCancelled || isPending || hasNoCredits;
+
+          return (
+            <div className="animate-fade-in mt-4 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Mentoring Card (Left) */}
+              <div className="lg:col-span-7 flex flex-col items-center justify-center w-full">
+                <div className="bg-gray-800/80 backdrop-blur-md rounded-[2rem] overflow-hidden border border-gray-700/50 shadow-2xl relative w-full">
+                  <div className="absolute inset-0 bg-gradient-to-tl from-blue-600/10 to-transparent pointer-events-none"></div>
+                  <div className="p-8 sm:p-12 flex flex-col md:flex-row items-center gap-10">
+                    <div className="w-48 h-48 md:w-64 md:h-64 rounded-full overflow-hidden border-8 border-gray-900 shadow-[0_0_30px_rgba(59,130,246,0.2)] flex-shrink-0 relative">
+                      <img src={selectedAvatar.avatarImage} alt={selectedAvatar.name} className={`w-full h-full object-cover relative z-10 ${selectedAvatar.imagePosition || 'object-center'}`} />
+                    </div>
+                    <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left z-10">
+                      <span className="text-xs font-black uppercase tracking-widest text-blue-400 mb-2">Seu Professor Mentor</span>
+                      <h2 className="text-4xl sm:text-5xl font-extrabold mb-4">{selectedAvatar.name}</h2>
+                      <p className="text-gray-400 mb-8 leading-relaxed max-w-md">
+                        {selectedAvatar.description}
+                      </p>
+                      <div className="w-full md:w-auto flex flex-col gap-3 mt-4">
+                        <button
+                          onClick={() => handleAvatarClick(selectedAvatar)}
+                          className={`w-full md:w-auto px-10 py-4 rounded-2xl font-black text-lg shadow-xl outline-none transition-all active:scale-95 flex items-center justify-center gap-3 ${isDisabled ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25'}`}
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          {isCancelled ? 'Assinar para Praticar' : isPending ? 'Processando...' : hasNoCredits ? 'Sem Créditos' : 'Continuar Aula'}
+                        </button>
+
+                        {onChangeAvatar && !isDisabled && (
+                          <button
+                            onClick={onChangeAvatar}
+                            className="w-full md:w-auto px-6 py-3 rounded-2xl font-bold text-sm border-2 border-gray-600 text-gray-300 hover:border-gray-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                            Trocar de Professor
+                          </button>
+                        )}
+                      </div>
+                      {isDisabled && (
+                        <p className="text-xs font-medium text-red-400 mt-4 uppercase tracking-widest text-center w-full md:text-left">
+                          Acesso temporariamente bloqueado
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+
+              {/* Curriculum List (Right) */}
+              <div className="lg:col-span-5 bg-gray-800/40 backdrop-blur-md border border-gray-700/50 rounded-3xl p-6 lg:p-8 flex flex-col h-[70vh] sticky top-8">
+                <h2 className="text-2xl font-black mb-1">Trilha de Aprendizagem</h2>
+                <p className="text-sm text-gray-400 mb-6">Acompanhe sua evolução no curso</p>
+
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                  {isLoadingCurriculum ? (
+                    <div className="flex items-center justify-center py-12 text-gray-500">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Carregando currículo...
+                    </div>
+                  ) : modulesList.length === 0 ? (
+                    <p className="text-gray-500 text-center py-10">Nenhum módulo encontrado.</p>
+                  ) : (
+                    modulesList.map((mod) => (
+                      <div key={mod.id} className="bg-gray-900/50 rounded-2xl border border-gray-700 overflow-hidden">
+                        <div className="p-4 border-b border-gray-800 bg-gray-800/20">
+                          <h3 className="font-bold text-sm uppercase tracking-wider text-blue-400">
+                            Módulo {mod.position + 1}
+                          </h3>
+                          <p className="font-bold text-white mt-1">{mod.title}</p>
+                        </div>
+                        <div className="bg-gray-900/40 divide-y divide-gray-800">
+                          {(lessonsByModule[mod.id] || []).map((lesson) => {
+                            const isCompleted = completedLessonIdsList.has(lesson.id);
+                            return (
+                              <div key={lesson.id} className="p-4 flex gap-4 items-start hover:bg-gray-800/30 transition-colors">
+                                <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 ${isCompleted ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-gray-600 text-gray-600 bg-gray-800/50'}`}>
+                                  {isCompleted ? (
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                                  ) : (
+                                    <span className="text-[10px] font-bold">{lesson.position + 1}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className={`text-sm font-bold ${isCompleted ? 'text-gray-300' : 'text-gray-400'}`}>{lesson.title}</h4>
+                                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{lesson.content}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {activeTab === 'history' && (
           <div className="space-y-6 animate-fade-in">
@@ -747,9 +794,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                               </div>
 
                               <div className="grid grid-cols-3 gap-2">
-                                <div className="text-center bg-gray-800 p-2 rounded-lg"><p className="text-[9px] uppercase text-gray-500">Vocab</p><p className="font-bold text-xs">{session.vocabularyScore}</p></div>
-                                <div className="text-center bg-gray-800 p-2 rounded-lg"><p className="text-[9px] uppercase text-gray-500">Gram</p><p className="font-bold text-xs">{session.grammarScore}</p></div>
-                                <div className="text-center bg-gray-800 p-2 rounded-lg"><p className="text-[9px] uppercase text-gray-500">Pron</p><p className="font-bold text-xs">{session.pronunciationScore}</p></div>
+                                <div className="text-center bg-gray-800 p-2 rounded-lg"><p className="text-[9px] uppercase text-gray-500">Confiança</p><p className="font-bold text-xs">{session.confidenceScore}%</p></div>
+                                <div className="text-center bg-gray-800 p-2 rounded-lg"><p className="text-[9px] uppercase text-gray-500">Clareza</p><p className="font-bold text-xs">{session.clarityScore}%</p></div>
+                                <div className="text-center bg-gray-800 p-2 rounded-lg"><p className="text-[9px] uppercase text-gray-500">Persuasão</p><p className="font-bold text-xs">{session.persuasionScore}%</p></div>
                               </div>
 
                               <div className="border-t border-gray-700 pt-4">
@@ -909,22 +956,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 p-8 rounded-3xl shadow-xl flex flex-col justify-center">
-                        <h3 className="text-xl font-black mb-4 flex items-center gap-2">
-                          <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                          Resumo do seu Aprendizado
-                        </h3>
-                        <p className="text-lg text-gray-200 leading-relaxed italic">"{detailedFeedback.resumo_geral}"</p>
-                      </div>
-
-                      <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-xl flex flex-col items-center">
-                        <h3 className="text-xs font-black uppercase text-gray-500 mb-2 tracking-widest">Gráfico de Radar de Competências</h3>
-                        <SimpleRadarChart metrics={radarMetrics} />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Métricas Atuais */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {detailedFeedback.metricas_atuais && Object.entries(detailedFeedback.metricas_atuais).map(([key, val]) => {
                         const metric = val as MetricDetail;
                         const label = key.replace(/_/g, ' ');
@@ -956,6 +989,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                         );
                       })}
                     </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 p-8 rounded-3xl shadow-xl flex flex-col justify-center">
+                        <h3 className="text-xl font-black mb-4 flex items-center gap-2">
+                          <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          Resumo do seu Aprendizado
+                        </h3>
+                        <p className="text-lg text-gray-200 leading-relaxed italic">"{detailedFeedback.resumo_geral}"</p>
+                      </div>
+
+                      <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700 shadow-xl flex flex-col items-center">
+                        <h3 className="text-xs font-black uppercase text-gray-500 mb-2 tracking-widest">Gráfico de Radar de Competências</h3>
+                        <SimpleRadarChart metrics={radarMetrics} />
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-gray-800 p-12 rounded-3xl border border-gray-700 text-center space-y-4">
@@ -966,12 +1014,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
                     <p className="text-gray-500 max-w-sm mx-auto">
                       Gere um novo feedback acima para ver sua análise detalhada ou realize novas sessões de prática.
                     </p>
-                  </div >
+                  </div>
                 )}
-              </div >
+              </div>
             );
-          })()
-        }
+          })()}
 
         {
           activeTab === 'profile' && (

@@ -4,24 +4,24 @@ import React from 'react';
 export const TermsContent: React.FC = () => (
     <div className="space-y-4">
         <p className="text-sm text-gray-400">Última atualização: 07/02/2026</p>
-        <p>Bem-vindo ao PratiquePRO, uma plataforma digital que utiliza tecnologias de inteligência artificial para auxiliar usuários no desenvolvimento de fluência, vocabulário e conversação.</p>
-        <p>Ao acessar ou utilizar o PratiquePRO, você declara que leu, compreendeu e concorda integralmente com estes Termos de Uso. Caso não concorde, não utilize a plataforma.</p>
+        <p>Bem-vindo ao OratoriaIA, uma plataforma digital que utiliza tecnologias de inteligência artificial para auxiliar usuários no desenvolvimento de fluência, vocabulário e conversação.</p>
+        <p>Ao acessar ou utilizar o OratoriaIA, você declara que leu, compreendeu e concorda integralmente com estes Termos de Uso. Caso não concorde, não utilize a plataforma.</p>
 
         <h4 className="font-bold text-white mt-4">1. Objeto do Serviço</h4>
-        <p>O PratiquePRO é uma plataforma online que oferece experiências de prática linguística e feedbacks automatizados por meio de inteligência artificial.</p>
+        <p>O OratoriaIA é uma plataforma online que oferece experiências de prática linguística e feedbacks automatizados por meio de inteligência artificial.</p>
         <p>O serviço tem caráter educacional e auxiliar, não substituindo professores humanos, cursos formais, certificações oficiais ou avaliações acadêmicas.</p>
 
         <h4 className="font-bold text-white mt-4">2. Cadastro e Conta do Usuário</h4>
-        <p>Para utilizar o PratiquePRO, é necessário criar uma conta. O usuário é responsável por fornecer informações verídicas e atualizadas.</p>
+        <p>Para utilizar o OratoriaIA, é necessário criar uma conta. O usuário é responsável por fornecer informações verídicas e atualizadas.</p>
         <p>A guarda e confidencialidade das credenciais de acesso são de responsabilidade exclusiva do usuário.</p>
         <p>Todas as atividades realizadas na conta serão consideradas de responsabilidade do titular.</p>
-        <p>O PratiquePRO poderá suspender ou encerrar contas que apresentem uso indevido ou violem estes Termos.</p>
+        <p>O OratoriaIA poderá suspender ou encerrar contas que apresentem uso indevido ou violem estes Termos.</p>
 
         <h4 className="font-bold text-white mt-4">3. Assinaturas, Pagamentos e Cobrança</h4>
-        <p>O PratiquePRO oferece planos pagos, podendo incluir assinaturas recorrentes. Os pagamentos são processados por meio da plataforma Asaas, conforme as condições do plano contratado.</p>
+        <p>O OratoriaIA oferece planos pagos, podendo incluir assinaturas recorrentes. Os pagamentos são processados por meio da plataforma Asaas, conforme as condições do plano contratado.</p>
         <p>Ao contratar um plano pago, o usuário autoriza a cobrança recorrente conforme a periodicidade escolhida.</p>
         <p>Os valores, limites e condições de cada plano são informados antes da contratação.</p>
-        <p>O PratiquePRO não armazena dados completos de cartão de crédito.</p>
+        <p>O OratoriaIA não armazena dados completos de cartão de crédito.</p>
 
         <h4 className="font-bold text-white mt-4">4. Cancelamento da Assinatura</h4>
         <p>O cancelamento da assinatura pode ser realizado a qualquer momento pelo usuário.</p>
@@ -38,7 +38,7 @@ export const TermsContent: React.FC = () => (
         <p>As interações e feedbacks são gerados por modelos de inteligência artificial.</p>
         <p>As respostas podem conter imprecisões, interpretações subjetivas ou limitações técnicas.</p>
         <p>O usuário reconhece que os feedbacks fornecidos têm caráter informativo e auxiliar.</p>
-        <p>O PratiquePRO não se responsabiliza por decisões tomadas com base exclusiva nas respostas da IA.</p>
+        <p>O OratoriaIA não se responsabiliza por decisões tomadas com base exclusiva nas respostas da IA.</p>
 
         <h4 className="font-bold text-white mt-4">7. Conteúdo do Usuário</h4>
         <p>O usuário mantém a titularidade sobre os conteúdos que gerar ou enviar à plataforma.</p>
@@ -46,7 +46,7 @@ export const TermsContent: React.FC = () => (
         <p>É proibido enviar conteúdo ilegal, ofensivo, discriminatório ou que viole direitos de terceiros.</p>
 
         <h4 className="font-bold text-white mt-4">8. Suspensão e Encerramento de Conta</h4>
-        <p>O PratiquePRO reserva-se o direito de suspender ou encerrar contas, sem aviso prévio, quando houver:</p>
+        <p>O OratoriaIA reserva-se o direito de suspender ou encerrar contas, sem aviso prévio, quando houver:</p>
         <ul className="list-disc pl-5 space-y-1">
             <li>violação destes Termos</li>
             <li>uso abusivo ou fraudulento</li>
@@ -56,7 +56,7 @@ export const TermsContent: React.FC = () => (
 
         <h4 className="font-bold text-white mt-4">9. Limitação de Responsabilidade</h4>
         <p>O serviço é fornecido nos termos "no estado em que se encontra".</p>
-        <p>O PratiquePRO não garante que a plataforma estará livre de erros, interrupções ou indisponibilidades temporárias, não se responsabilizando por eventuais perdas decorrentes de falhas técnicas.</p>
+        <p>O OratoriaIA não garante que a plataforma estará livre de erros, interrupções ou indisponibilidades temporárias, não se responsabilizando por eventuais perdas decorrentes de falhas técnicas.</p>
 
         <h4 className="font-bold text-white mt-4">10. Alterações dos Termos</h4>
         <p>Estes Termos podem ser alterados a qualquer momento.</p>
@@ -85,7 +85,7 @@ export const PrivacyContent: React.FC = () => (
             <li>Dados de uso e desempenho</li>
             <li>Informações de pagamento (processadas pelo Asaas)</li>
         </ul>
-        <p className="text-yellow-400 font-bold text-xs mt-2">❗ O PratiquePRO não armazena dados completos de cartão de crédito.</p>
+        <p className="text-yellow-400 font-bold text-xs mt-2">❗ O OratoriaIA não armazena dados completos de cartão de crédito.</p>
 
         <h4 className="font-bold text-white mt-4">2. Finalidade do Uso</h4>
         <p>Os dados são utilizados para:</p>

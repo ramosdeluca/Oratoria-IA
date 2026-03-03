@@ -10,7 +10,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     <div className="bg-slate-950 text-slate-100 font-sans selection:bg-blue-500/30">
       {/* Navigation Header */}
       <nav className="max-w-7xl mx-auto px-6 py-8 flex justify-between items-center">
-        <div className="text-2xl font-black text-blue-400 tracking-tight">PratiquePRO</div>
+        <div className="text-2xl font-black text-blue-400 tracking-tight">OratoriaIA</div>
         <button
           onClick={onStart}
           className="text-sm font-bold bg-slate-900 border border-slate-800 hover:border-blue-500 px-6 py-2.5 rounded-full transition-all"
@@ -22,7 +22,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
       {/* Hero Section */}
       <header className="max-w-7xl mx-auto px-6 pt-16 pb-24 md:pt-24 md:pb-32 text-center">
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-6">
-          Fale inglês com confiança <br className="hidden md:block" />
+          Fale em público com confiança <br className="hidden md:block" />
           através da prática real.
         </h1>
         <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -82,11 +82,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         </div>
       </section>
 
-      {/* Why PratiquePRO */}
+      {/* Why OratoriaIA */}
       <section className="bg-slate-900/50 py-24 border-y border-slate-900">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-16">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">Por que praticar com o PratiquePRO</h2>
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">Por que praticar com o OratoriaIA</h2>
             <div className="w-20 h-1 bg-blue-500"></div>
           </div>
 
@@ -125,7 +125,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
           <div className="z-10">
             <h2 className="text-3xl md:text-5xl font-black text-white mb-8">Feedback e Evolução em Tempo Real</h2>
             <p className="text-blue-100 text-lg leading-relaxed mb-10">
-              O PratiquePRO não apenas ouve você; ele analisa profundamente sua competência linguística.
+              O OratoriaIA não apenas ouve você; ele analisa profundamente sua competência linguística.
               Atuamos como seu treinador pessoal de conversação, mapeando sua fluência,
               precisão gramatical e riqueza de vocabulário a cada palavra dita.
             </p>
@@ -246,11 +246,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
       {/* Who is it for */}
       <section className="py-24 max-w-7xl mx-auto px-6 text-center">
-        <h2 className="text-3xl md:text-4xl font-black text-white mb-12">Para quem é o PratiquePRO</h2>
+        <h2 className="text-3xl md:text-4xl font-black text-white mb-12">Para quem é o OratoriaIA</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           <div>
             <h4 className="text-white font-bold mb-4 text-xl">Profissionais</h4>
-            <p className="text-slate-400 text-sm leading-relaxed">Para quem precisa do inglês para reuniões, apresentações e networking internacional.</p>
+            <p className="text-slate-400 text-sm leading-relaxed">Para quem precisa de boa oratória para reuniões, apresentações e networking.</p>
           </div>
           <div>
             <h4 className="text-white font-bold mb-4 text-xl">Ex-estudantes</h4>
@@ -279,8 +279,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
       {/* Footer */}
       <footer className="py-12 border-t border-slate-900 text-center">
-        <div className="text-xl font-black text-slate-600 mb-4 tracking-tight">PratiquePRO</div>
-        <p className="text-slate-700 text-sm">&copy; {new Date().getFullYear()} PratiquePRO. Todos os direitos reservados.</p>
+        <div className="text-xl font-black text-slate-600 mb-4 tracking-tight">OratoriaIA</div>
+        <p className="text-slate-700 text-sm">&copy; {new Date().getFullYear()} OratoriaIA. Todos os direitos reservados.</p>
       </footer>
     </div>
   );

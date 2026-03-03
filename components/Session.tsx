@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User, AvatarConfig, ChatMessage, SessionResult } from '../types';
+import { User, AvatarConfig, ChatMessage, SessionResult, Course, CourseModule, Lesson, Exercise } from '../types';
 import { useLiveAvatar } from '../hooks/useLiveAvatar';
 import { evaluateSession } from '../services/gemini';
 import { getLastSessionContext } from '../services/supabase';
+import { getNextLessonForUser, markLessonCompleted } from '../services/progressService';
 
 interface SessionProps {
   user: User;
@@ -23,14 +24,31 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel, o
   const [localError, setLocalError] = useState<string | null>(null);
   const [previousContext, setPreviousContext] = useState<string | undefined>(undefined);
   const [isLoadingContext, setIsLoadingContext] = useState(true);
+  const [currentLessonData, setCurrentLessonData] = useState<{
+    course: Course,
+    module: CourseModule,
+    lesson: Lesson,
+    exercise: Exercise | null
+  } | null>(null);
+  const [lessonContext, setLessonContext] = useState<string>('');
 
   useEffect(() => {
-    // Carrega o contexto da última conversa ao montar
+    // Carrega o contexto da última conversa e a próxima aula ao montar
     if (user.id) {
-      getLastSessionContext(user.id, avatar.name).then(context => {
-        if (context) {
-          console.log('[Session] Contexto anterior carregado:', context.substring(0, 50) + '...');
-          setPreviousContext(context);
+      Promise.all([
+        getLastSessionContext(user.id, avatar.name),
+        getNextLessonForUser(user.id)
+      ]).then(async ([context, lessonDataOrNull]) => {
+        if (context) setPreviousContext(context);
+
+        if (lessonDataOrNull) {
+          setCurrentLessonData(lessonDataOrNull);
+          const { lesson, module, exercise } = lessonDataOrNull;
+          let ctxString = `[MÓDULO ${module.position + 1}: ${module.title}]\n[AULA ${lesson.position + 1}: ${lesson.title}]\n${lesson.content}\n`;
+          if (exercise) {
+            ctxString += `\n[EXERCÍCIO PRINCIPAL]\nInstrução: ${exercise.instruction}`;
+          }
+          setLessonContext(ctxString);
         }
       }).finally(() => {
         setIsLoadingContext(false);
@@ -87,6 +105,7 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel, o
     avatarConfig: avatar,
     userName: user.name?.split(' ')[0] || user.username,
     previousContext: isLoadingContext ? undefined : previousContext, // Garante que só passa se já carregou
+    lessonContext: isLoadingContext ? undefined : lessonContext,
     onTranscriptUpdate: handleTranscriptUpdate
   });
 
@@ -140,6 +159,17 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel, o
     }, 15000);
     return () => clearInterval(syncInterval);
   }, [remainingSeconds, hasStarted, isFinishing, onUpdateCredits]);
+
+  const hasSentIntroRef = useRef(false);
+  useEffect(() => {
+    if (isConnected && !hasSentIntroRef.current) {
+      hasSentIntroRef.current = true;
+      const theme = currentLessonData
+        ? `o Módulo ${currentLessonData.module.position + 1} (${currentLessonData.module.title}), Aula ${currentLessonData.lesson.position + 1} (${currentLessonData.lesson.title})`
+        : 'Conversação';
+      sendText(`[SYSTEM] A sessão começou. Inicie a conversa amigavelmente dando as boas-vindas. Diga algo como: "Olá! Pront${['Sophia', 'Maya', 'Sarah'].includes(avatar.name) ? 'a' : 'o'} para a nossa aula?" e introduza o tema: ${theme}.`);
+    }
+  }, [isConnected, sendText, avatar.name, currentLessonData]);
 
   useEffect(() => {
     if (hasStarted && userVideoRef.current && userStreamRef.current) {
@@ -229,11 +259,14 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel, o
     const duration = startTime ? (Date.now() - startTime) / 1000 : 0;
     try {
       const result = await evaluateSession(finalTranscript);
+      if (currentLessonData?.lesson && user.id && result.isCompleted) {
+        await markLessonCompleted(user.id, currentLessonData.lesson.id, result.overallScore);
+      }
       onComplete({ ...result, durationSeconds: duration }, finalMinutes);
     } catch (e) {
       onComplete({
-        overallScore: 0, vocabularyScore: 0, grammarScore: 0, pronunciationScore: 0,
-        fluencyRating: 'Beginner', feedback: "Prática concluída.",
+        overallScore: 0, confidenceScore: 0, clarityScore: 0, persuasionScore: 0, postureScore: 0,
+        feedback: "Prática concluída.",
         transcript: finalTranscript, durationSeconds: duration
       }, finalMinutes);
     }
@@ -254,12 +287,22 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel, o
               {Math.floor(remainingSeconds / 60)}:{String(remainingSeconds % 60).padStart(2, '0')}
             </span>
           </div>
-          <div className="flex gap-2 pointer-events-auto">
-            <button onClick={() => setShowTranscript(!showTranscript)} className={`p-3 rounded-full backdrop-blur-md transition-all ${showTranscript ? 'bg-blue-600' : 'bg-black/40 border border-white/10'}`}>
+          {currentLessonData && (
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 bg-black/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/5 shadow-xl pointer-events-auto hidden md:block">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+                Módulo {currentLessonData.module.position + 1} <span className="text-gray-500 mx-1">•</span> Aula {currentLessonData.lesson.position + 1}
+              </span>
+            </div>
+          )}
+          <div className="flex gap-2 pointer-events-auto items-center">
+            <button onClick={() => sendText("[SYSTEM] O aluno pediu para você repetir a explicação. Por favor, explique o último conceito de forma mais simples e dê outro exemplo.")} className="px-3 py-2 font-bold bg-blue-600/80 hover:bg-blue-500 rounded-full text-white shadow-lg transition-transform active:scale-95 text-xs backdrop-blur-md border border-white/10">
+              Repetir Explicação
+            </button>
+            <button onClick={() => setShowTranscript(!showTranscript)} className={`p-2.5 rounded-full backdrop-blur-md transition-all ${showTranscript ? 'bg-blue-600' : 'bg-black/40 border border-white/10'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
             </button>
-            <button onClick={() => handleFinish()} className="bg-red-600 hover:bg-red-700 p-3 rounded-full text-white shadow-lg transition-transform active:scale-95">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <button onClick={() => handleFinish()} className="px-4 py-2 font-bold bg-red-600/90 hover:bg-red-500 rounded-full text-white shadow-lg transition-transform active:scale-95 text-xs backdrop-blur-md border border-red-400/20">
+              Concluir Exercício
             </button>
           </div>
         </header>
@@ -302,6 +345,12 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel, o
             <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-700 max-w-sm w-full text-center">
               <img src={avatar.avatarImage} className={`w-24 h-24 mx-auto mb-4 rounded-full border-4 border-blue-500 object-cover ${avatar.imagePosition || 'object-center'}`} />
               <h2 className="text-2xl font-bold mb-2">Praticar com {avatar.name}</h2>
+              {currentLessonData && (
+                <div className="mb-4 bg-gray-900/50 p-3 rounded-xl border border-gray-700/50">
+                  <span className="text-[10px] uppercase font-bold text-blue-400 block mb-1">Módulo {currentLessonData.module.position + 1}</span>
+                  <p className="text-sm font-medium text-gray-300 line-clamp-2">{currentLessonData.lesson.title}</p>
+                </div>
+              )}
               <p className="text-gray-400 text-sm mb-6">{avatar.description}</p>
               <button
                 onClick={handleStart}

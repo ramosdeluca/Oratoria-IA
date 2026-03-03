@@ -1,5 +1,5 @@
 {
-  "name": "pratiquepro---tutor-de-inglês",
+  "name": "oratoria-ia",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,7 +13,8 @@
     "@supabase/supabase-js": "^2.95.3",
     "node-fetch": "^3.3.2",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

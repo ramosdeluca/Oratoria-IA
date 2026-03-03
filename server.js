@@ -1,7 +1,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 require('dotenv').config();
 
 const app = express();
@@ -56,16 +56,16 @@ app.post('/api/subscribe', async (req, res) => {
     // Tentamos parsear, senão retornamos o texto bruto.
     const text = await response.text();
     try {
-        const data = JSON.parse(text);
-        res.status(response.status).json(data);
+      const data = JSON.parse(text);
+      res.status(response.status).json(data);
     } catch (e) {
-        res.status(response.status).send(text);
+      res.status(response.status).send(text);
     }
   } catch (error) {
     console.error('[Proxy Error] n8n:', error.message);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Erro interno no proxy n8n',
-      message: error.message 
+      message: error.message
     });
   }
 });
@@ -85,7 +85,7 @@ app.get('/api/checar-status', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 PROXY PRATIQUEPRO RODANDO`);
+  console.log(`\n🚀 PROXY ORATORIAIA RODANDO`);
   console.log(`------------------------------------------------`);
   console.log(`Local: http://localhost:${PORT}`);
   console.log(`Network: http://127.0.0.1:${PORT}`);

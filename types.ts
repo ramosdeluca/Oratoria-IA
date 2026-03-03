@@ -10,15 +10,61 @@ export interface User {
   points: number;
   sessionsCompleted: number;
   joinedDate: string;
-  creditsRemaining: number; // Saldo atual em minutos
-  creditsTotal?: number; // Total histórico ou do plano atual
+  creditsRemaining: number;
+  creditsTotal?: number;
   customerIdAsaas?: string;
-  subscription?: string; // ID da assinatura
-  subscriptionStatus?: string; // Status: ACTIVE, PENDING, etc.
+  subscription?: string;
+  subscriptionStatus?: string;
   cpf?: string;
   phone?: string;
-  termsAcceptedAt?: string; // ISO Timestamp provided at registration
-  qtdFeedbacks?: number; // Contador de feedbacks mensais (máx 5)
+  termsAcceptedAt?: string;
+  qtdFeedbacks?: number;
+  avatarId?: string; // ID do avatar escolhido
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
+export interface CourseModule {
+  id: string;
+  course_id: string;
+  title: string;
+  position: number;
+}
+
+export interface Lesson {
+  id: string;
+  module_id: string;
+  title: string;
+  content: string;
+  position: number;
+}
+
+export interface Exercise {
+  id: string;
+  lesson_id: string;
+  instruction: string;
+  type: string;
+}
+
+export interface StudentProgress {
+  id: string;
+  user_id: string;
+  lesson_id: string;
+  completed: boolean;
+  score: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonChunk {
+  id: number;
+  lesson_id: string;
+  content: string;
 }
 
 export interface MetricDetail {
@@ -34,44 +80,43 @@ export interface HistoricalDataPoint {
 export interface DetailedFeedback {
   metricas_atuais: {
     fluencia: MetricDetail;
-    vocabulario: MetricDetail;
-    precisao_gramatical: MetricDetail;
-    clareza_pronuncia: MetricDetail;
-    coerencia: MetricDetail;
     confianca: MetricDetail;
+    clareza: MetricDetail;
+    persuasao: MetricDetail;
+    postura: MetricDetail;
+    coerencia: MetricDetail;
   };
   feedbacks: {
     fluencia: string;
-    vocabulario: string;
-    precisao_gramatical: string;
-    clareza_pronuncia: string;
-    coerencia: string;
     confianca: string;
+    clareza: string;
+    persuasao: string;
+    postura: string;
+    coerencia: string;
   };
   resumo_geral: string;
   dados_grafico_historico: {
     fluencia: HistoricalDataPoint[];
-    vocabulario: HistoricalDataPoint[];
-    precisao_gramatical: HistoricalDataPoint[];
-    clareza_pronuncia: HistoricalDataPoint[];
-    coerencia: HistoricalDataPoint[];
     confianca: HistoricalDataPoint[];
+    clareza: HistoricalDataPoint[];
+    persuasao: HistoricalDataPoint[];
+    postura: HistoricalDataPoint[];
+    coerencia: HistoricalDataPoint[];
   };
 }
 
 export interface SessionResult {
   overallScore: number;
-  vocabularyScore: number;
-  grammarScore: number;
-  pronunciationScore: number;
-  coherenceScore: number;
   confidenceScore: number;
-  fluencyRating: 'Beginner' | 'Intermediate' | 'Advanced' | 'Native';
+  clarityScore: number;
+  persuasionScore: number;
+  postureScore: number;
   feedback: string;
   durationSeconds: number;
   transcript: string;
   date: string;
   avatarName: string;
+  isCompleted?: boolean;
 }
 
 export interface ChatMessage {
