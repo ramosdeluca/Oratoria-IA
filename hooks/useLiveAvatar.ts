@@ -183,6 +183,7 @@ export const useLiveAvatar = ({ avatarConfig, userName, previousContext, lessonC
       if (userName) console.log(`[useLiveAvatar] Personalization enabled for user: ${userName}`);
       if (previousContext) console.log(`[useLiveAvatar] Continuity enabled. Context length: ${previousContext.length} chars`);
 
+
       const ai = new GoogleGenAI({ apiKey });
 
       const currentSessionPromise = ai.live.connect({
