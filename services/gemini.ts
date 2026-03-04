@@ -67,9 +67,9 @@ const safeJsonParse = (text: string): any => {
 
 // Modelos priorizando o menor custo (Flash é mais barato que Pro)
 const MODELS = {
-  // Modelos confirmados como funcionais via listModels/fetch
-  EVAL: ["gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-pro-latest"],
-  DETAILED: ["gemini-2.5-flash", "gemini-pro-latest"]
+  // Modelos disponíveis confirmados via inventário da API (Junho 2025+)
+  EVAL: ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"],
+  DETAILED: ["gemini-flash-latest", "gemini-2.5-flash"]
 };
 
 export const evaluateSession = async (transcript: string, userName: string): Promise<Omit<SessionResult, 'durationSeconds' | 'date' | 'avatarName'>> => {
@@ -99,6 +99,7 @@ export const evaluateSession = async (transcript: string, userName: string): Pro
     try {
       const response = await (genAI as any).models.generateContent({
         model: modelName,
+        systemInstruction: "Mentor rigoroso. Seja direto e ultraconciso. Nunca seja prolixo. Use escala 0-100.",
         contents: [{
           role: 'user', parts: [{
             text: `Aja como Avaliador de Oratória extremamente rigoroso. \n\nO nome do aluno é: "${userName}". Trate o aluno pelo nome no início do feedback.\n\nAvalie a seguinte transcrição da fala do aluno.\nTranscript:\n"${prunedTranscript}"\n\nRETORNE EM JSON:\n{ "overallScore":number, "confidenceScore":number, "clarityScore":number, "persuasionScore":number, "postureScore":number, "feedback":"string", "isCompleted":boolean }\nMáx 25 palavras no feedback.`
@@ -108,9 +109,6 @@ export const evaluateSession = async (transcript: string, userName: string): Pro
           maxOutputTokens: 250,
           temperature: 0.7,
           responseMimeType: "application/json"
-        },
-        systemInstruction: {
-          parts: [{ text: "Mentor rigoroso. Seja direto e ultraconciso. Nunca seja prolixo. Use escala 0-100." }]
         }
       });
 
@@ -167,6 +165,7 @@ export const generateDetailedFeedback = async (currentTranscript: string, histor
     try {
       const response = await (genAI as any).models.generateContent({
         model: modelName,
+        systemInstruction: "Consultor Pedagógico. Gere relatórios ultraconcisos. Nunca seja prolixo. Garanta integridade total do JSON.",
         contents: [{
           role: 'user',
           parts: [{
@@ -191,9 +190,6 @@ export const generateDetailedFeedback = async (currentTranscript: string, histor
           maxOutputTokens: 500, // Otimizado para economia extrema
           temperature: 0.1,
           responseMimeType: "application/json"
-        },
-        systemInstruction: {
-          parts: [{ text: "Consultor Pedagógico. Gere relatórios ultraconcisos. Nunca seja prolixo. Garanta integridade total do JSON." }]
         }
       });
 
@@ -224,15 +220,18 @@ export const askQuickQuestion = async (studentQuestion: string, lessonContext: s
     try {
       const response = await (genAI as any).models.generateContent({
         model: modelName,
+        systemInstruction: `### REGRA ABSOLUTA: BLOQUEIO TOTAL DE ESCOPO ###
+        1. VOCÊ É EXCLUSIVAMENTE UM MENTOR DE ORATÓRIA. É ESTRITAMENTE PROIBIDO falar sobre: Esportes, Flamengo, Placares, Notícias ou qualquer assunto aleatório.
+        2. Se o aluno perguntar algo fora de oratória, sua resposta DEVE ser: "Como sua mentora de oratória, meu papel é focar no seu desenvolvimento. Não tenho informações sobre outros temas. Vamos voltar para a aula?".
+        3. Nunca mencione resultados de jogos ou nomes de times.
+        
+        BIO DO AVATAR: ${avatarSystemInstruction}`,
         contents: [{
           role: 'user', parts: [{ text: `AULA ATUAL: \n"${lessonContext}"\n\nDÚVIDA DO ALUNO: "${studentQuestion}"\n\nResponda APENAS à dúvida de forma direta.Não re - explique a aula.` }]
         }],
         generationConfig: {
           maxOutputTokens: 60,  // Reduzido para forçar respostas muito curtas
           temperature: 0.1,     // Quase nenhuma variatividade
-        },
-        systemInstruction: {
-          parts: [{ text: `${avatarSystemInstruction}\n\nREGRA CRÍTICA DE ESCOPO: Você é um especialista em Oratória. Se o aluno fizer perguntas sobre qualquer outro assunto que não seja comunicação, oratória ou o conteúdo desta lição, responda educadamente: "Desculpe, meu foco aqui é ajudar você com sua oratória e comunicação. Posso tirar alguma dúvida sobre a aula?".\n\nREGRA DE FORMATO: Responda em no MÁXIMO 2 frases curtas. Vá direto ao ponto.` }]
         }
       });
       let text = response.text || (response.response && response.response.text && (typeof response.response.text === 'function' ? response.response.text() : response.response.text));
@@ -326,9 +325,7 @@ export const generateEnhancedLessonScript = async (lessonContent: string): Promi
     try {
       const response = await (genAI as any).models.generateContent({
         model: modelName,
-        systemInstruction: {
-          parts: [{ text: "Você é um Instrutor de Oratória Prestativo. Sua função é receber o texto de uma aula e transformá-lo em um script envolvente. O script DEVE conter o texto original seguido OBRIGATORIAMENTE de uma breve explicação prática com suas próprias palavras para facilitar o aprendizado. Não use markdown ou asteriscos." }]
-        },
+        systemInstruction: "Você é um Instrutor de Oratória Prestativo. Sua função é receber o texto de uma aula e transformá-lo em um script envolvente. O script DEVE conter o texto original seguido OBRIGATORIAMENTE de uma breve explicação prática com suas próprias palavras para facilitar o aprendizado. Não use markdown ou asteriscos.",
         contents: [{
           role: 'user',
           parts: [{

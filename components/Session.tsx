@@ -208,17 +208,23 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             });
         };
 
+        // Variável persistente para o texto final (com ou sem resumo)
+        let finalSpeechText = text;
+
         const generateAndPlay = async () => {
             console.log(`[Session][${traceId}] Iniciando geração de novo áudio Cloud TTS...`);
             try {
-                // Tenta enriquecer, se falhar usa o texto original
-                const enhancedText = await generateEnhancedLessonScript(text).catch(err => {
-                    console.warn(`[Session][${traceId}] Falha ao enriquecer texto, usando original:`, err);
-                    return text;
-                });
+                // Enriquecimento dinâmico apenas para o conteúdo da aula (Modo Ensino)
+                const shouldEnrich = tableReference?.table === 'lessons';
+                finalSpeechText = shouldEnrich
+                    ? await generateEnhancedLessonScript(text).catch(err => {
+                        console.warn(`[Session][${traceId}] Falha ao enriquecer texto, usando original:`, err);
+                        return text;
+                    })
+                    : text;
 
                 console.log(`[Session][${traceId}] Chamando Cloud TTS API...`);
-                const audioBlob = await generateTTS(enhancedText, avatar.name);
+                const audioBlob = await generateTTS(finalSpeechText, avatar.name);
                 if (!audioBlob) throw new Error("A API de TTS retornou vazio");
 
                 console.log(`[Session][${traceId}] Áudio gerado (${audioBlob.size} bytes). Preparando URL...`);
@@ -264,9 +270,9 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             }
         } catch (criticalErr) {
             console.error(`[Session][${traceId}] Passo Final: Tudo falhou. Fallback para voz robótica:`, criticalErr);
-            // Fallback para voz do navegador
+            // Fallback para voz do navegador (Usando finalSpeechText que agora contém o resumo)
             try {
-                const utterance = new SpeechSynthesisUtterance(text);
+                const utterance = new SpeechSynthesisUtterance(finalSpeechText);
                 utterance.lang = 'pt-BR';
                 const isFemale = ['Sophia', 'Maya', 'Sarah', 'Kore'].includes(avatar.name);
                 if (isFemale && window.speechSynthesis) {

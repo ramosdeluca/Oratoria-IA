@@ -41,46 +41,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         </div>
       </header>
 
-      {/* Pricing Section */}
+      {/* Pricing Section (Removido Temporariamente) */}
+      {/* 
       <section className="py-24 bg-slate-950 border-t border-slate-900 text-center">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-3xl md:text-5xl font-black text-white mb-6">
-            Plano Premium
-          </h2>
-
-          <p className="text-slate-400 text-lg mb-10">
-            Ganhe 10 minutos grátis para testar agora.
-            Se gostar, continue com até 300 minutos de conversação real por mês
-            (5 horas de prática por voz) com feedback inteligente incluído.
-          </p>
-
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 inline-block">
-            <div className="text-5xl font-black text-white mb-2">
-              R$ 49,90
-            </div>
-            <div className="text-slate-500 mb-6">
-              por mês
-            </div>
-
-            <ul className="text-left text-slate-300 space-y-3 mb-8">
-              <li>✔️ Até 300 minutos mensais</li>
-              <li>✔️ Conversas ilimitadas por sessão</li>
-              <li>✔️ Relatórios de evolução</li>
-              <li>✔️ Todos os avatares liberados</li>
-              <li>✔️ Recarregue minutos via PIX quando quiser</li>
-              <li>✔️ Menos de R$ 1,70 por dia</li>
-              <li>✔️ Cancele quando quiser. Sem fidelidade.</li>
-            </ul>
-
-            <button
-              onClick={onStart}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-2xl transition-all"
-            >
-              Começar Agora
-            </button>
-          </div>
-        </div>
-      </section>
+        ...
+      </section> 
+      */}
 
       {/* Why OratoriaIA */}
       <section className="bg-slate-900/50 py-24 border-y border-slate-900">
@@ -119,127 +85,104 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         </div>
       </section>
 
-      {/* Feedback & Evolution Details */}
-      <section className="bg-blue-600 py-24 md:py-32 overflow-hidden relative">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-          <div className="z-10">
-            <h2 className="text-3xl md:text-5xl font-black text-white mb-8">Feedback e Evolução em Tempo Real</h2>
-            <p className="text-blue-100 text-lg leading-relaxed mb-10">
-              O OratoriaIA não apenas ouve você; ele analisa profundamente sua competência linguística.
-              Atuamos como seu treinador pessoal de conversação, mapeando sua fluência,
-              precisão gramatical e riqueza de vocabulário a cada palavra dita.
+      {/* Feedback & Evolution Details - Redesigned for Premium Look */}
+      <section className="bg-slate-950 py-24 md:py-32 overflow-hidden relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-6">Análise Profissional por IA</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+              Nossa inteligência artificial mapeia cada detalhe da sua comunicação em tempo real,
+              fornecendo um diagnóstico preciso de onde você deve focar para atingir a excelência.
             </p>
-            <ul className="space-y-5">
-              {[
-                "Análise detalhada de erros comuns",
-                "Gráficos de evolução histórica por competência",
-                "Identificação de tendências de aprendizado",
-                "Resumos de desempenho personalizados"
-              ].map((text, i) => (
-                <li key={i} className="flex items-center gap-4 text-white text-lg font-bold">
-                  <div className="w-2.5 h-2.5 bg-white rounded-full shadow-lg shadow-white/20"></div>
-                  {text}
-                </li>
-              ))}
-            </ul>
           </div>
 
-          <div className="relative pb-24 md:pb-32"> {/* Added padding to container to accommodate floating card */}
-            {/* Primary Dashboard Mockup */}
-            <div className="bg-slate-950 p-6 rounded-[2.5rem] shadow-[0_32px_64px_rgba(0,0,0,0.6)] border border-white/10 relative z-20">
-              {/* Fake Header Stats */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="bg-slate-900/80 p-3 rounded-2xl border border-white/5">
-                  <div className="text-[8px] text-slate-500 uppercase font-bold mb-1">Pontos</div>
-                  <div className="text-lg font-black text-yellow-500">3.719</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-2xl border border-white/5">
-                  <div className="text-[8px] text-slate-500 uppercase font-bold mb-1">Patente</div>
-                  <div className="text-xs font-black text-white">Falante</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-2xl border border-white/5">
-                  <div className="text-[8px] text-slate-500 uppercase font-bold mb-1">Aulas</div>
-                  <div className="text-lg font-black text-white">90</div>
-                </div>
-              </div>
-
-              {/* Fake Feedback Panel */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-blue-500/20 p-5 rounded-3xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-5 h-5 bg-blue-500/20 rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <span className="text-[9px] font-black uppercase text-white tracking-wider">Resumo do seu Aprendizado</span>
+          {/* Grid de Métricas (Inspirado na imagem do usuário) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {[
+              { label: 'CLAREZA', score: 15, trend: 'REGREDINDO', text: 'Dificuldade em expressar a ideia principal. Organize o pensamento antes de falar.' },
+              { label: 'POSTURA', score: 20, trend: 'REGREDINDO', text: 'A fragmentação da fala sugere inconsistência. Mantenha-se ereto e gesticule com propósito.' },
+              { label: 'FLUÊNCIA', score: 20, trend: 'REGREDINDO', text: 'Frases incompletas e hesitação. Conecte ideias e use pausas estrategicamente.' },
+              { label: 'COERÊNCIA', score: 18, trend: 'REGREDINDO', text: 'Ideias desconexas comprometem a lógica. Estruture sua fala em pontos principais.' },
+              { label: 'CONFIANÇA', score: 25, trend: 'REGREDINDO', text: 'A insegurança transparece. Pratique a firmeza vocal e o contato visual.' },
+              { label: 'PERSUASÃO', score: 10, trend: 'REGREDINDO', text: 'Não há objetivo claro. Defina sua mensagem e apoie com argumentos concisos.' },
+            ].map((m, i) => (
+              <div key={i} className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-[2rem] hover:border-blue-500/30 transition-all duration-500 group">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-[10px] font-black text-slate-500 tracking-widest">{m.label}</span>
+                  <div className="flex items-center gap-1.5 text-red-500">
+                    <span className="text-[9px] font-black tracking-tight">{m.trend}</span>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
                   </div>
-                  <p className="text-[10px] text-blue-100/70 leading-relaxed italic">
-                    "O usuário demonstra excelente compreensão auditiva... precisa trabalhar tempos verbais passados para atingir a fluência nativa."
-                  </p>
                 </div>
-
-                {/* Simplified Radar Chart SVG */}
-                <div className="bg-slate-900/50 p-4 rounded-3xl border border-white/5 flex flex-col items-center justify-center">
-                  <div className="text-[8px] text-slate-600 font-black uppercase mb-2 tracking-tighter">Competências</div>
-                  <svg width="100" height="100" viewBox="0 0 100 100" className="drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                    <polygon points="50,10 90,40 75,90 25,90 10,40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                    <polygon points="50,25 75,45 65,75 35,75 25,45" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" strokeWidth="2" />
-                    <circle cx="50" cy="25" r="2" fill="#3b82f6" />
-                    <circle cx="75" cy="45" r="2" fill="#3b82f6" />
-                    <circle cx="65" cy="75" r="2" fill="#3b82f6" />
-                    <circle cx="35" cy="75" r="2" fill="#3b82f6" />
-                    <circle cx="25" cy="45" r="2" fill="#3b82f6" />
-                  </svg>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-5xl font-black text-white group-hover:text-blue-400 transition-colors tracking-tighter">{m.score}</span>
+                  <span className="text-slate-600 text-sm font-bold">/ 100</span>
                 </div>
+                <p className="text-sm text-slate-400 leading-relaxed font-medium">
+                  {m.text}
+                </p>
               </div>
-            </div>
+            ))}
+          </div>
 
-            {/* Secondary Floating Mockup (Metric Cards) - Adjusted bottom/left to clear first image */}
-            <div className="absolute -bottom-10 md:-bottom-16 -left-4 md:-left-12 bg-slate-900 border border-white/10 p-5 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.6)] z-30 w-[260px] md:w-[300px] transform -rotate-2 transition-transform hover:rotate-0 duration-500">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Métrica em destaque</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[8px] font-bold text-green-400 uppercase">Evoluindo</span>
-                  <svg className="w-2.5 h-2.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            {/* Resumo Box */}
+            <div className="lg:col-span-2 bg-gradient-to-br from-blue-900/20 to-purple-900/20 backdrop-blur-md border border-white/10 p-10 rounded-[2.5rem] flex flex-col justify-center">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-8 h-8 rounded-full border-2 border-blue-400 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                 </div>
+                <h3 className="text-2xl font-black text-white tracking-tight">Resumo do seu Aprendizado</h3>
               </div>
-
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-4xl font-black text-yellow-500">55</span>
-                <span className="text-slate-600 text-[10px] font-bold">/ 100</span>
-              </div>
-
-              <p className="text-[9px] text-slate-400 leading-relaxed mb-6">
-                "O usuário mantém a troca de turnos adequadamente, mas utiliza frases curtas e fragmentadas..."
+              <p className="text-xl italic font-medium text-blue-100/80 leading-relaxed">
+                "Houve uma regressão significativa em todas as métricas, com fala fragmentada, falta de clareza e baixa confiança."
               </p>
-
-              <div className="border-t border-white/5 pt-4">
-                <span className="text-[8px] text-slate-600 font-black uppercase block mb-2">Evolução Histórica</span>
-                <svg width="100%" height="30" viewBox="0 0 100 20">
-                  <path
-                    d="M0,15 Q20,10 40,16 T80,8 T120,12"
-                    fill="none"
-                    stroke="#eab308"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M0,15 Q20,10 40,16 T80,8 T120,12 L120,20 L0,20 Z"
-                    fill="url(#grad2)"
-                    opacity="0.1"
-                  />
-                  <defs>
-                    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" style={{ stopColor: '#eab308', stopOpacity: 1 }} />
-                      <stop offset="100%" style={{ stopColor: '#eab308', stopOpacity: 0 }} />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
             </div>
 
-            {/* Decorative backgrounds */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400/20 rounded-full blur-[100px] z-0"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[100px] z-0"></div>
+            {/* Radar Chart Box */}
+            <div className="lg:col-span-3 bg-slate-900/40 backdrop-blur-md border border-white/5 p-10 rounded-[2.5rem] flex flex-col items-center">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10">Gráfico de Radar de Competências</span>
+
+              <div className="relative w-full max-w-[400px] aspect-square flex items-center justify-center">
+                {/* Radar Grid (SVG) */}
+                <svg viewBox="0 0 100 100" className="w-full h-full opacity-20">
+                  <polygon points="50,5 95,25 95,75 50,95 5,75 5,25" fill="none" stroke="white" strokeWidth="0.5" />
+                  <polygon points="50,25 72.5,35 72.5,65 50,75 27.5,65 27.5,35" fill="none" stroke="white" strokeWidth="0.5" />
+                  <line x1="50" y1="50" x2="50" y2="5" stroke="white" strokeWidth="0.5" />
+                  <line x1="50" y1="50" x2="95" y2="25" stroke="white" strokeWidth="0.5" />
+                  <line x1="50" y1="50" x2="95" y2="75" stroke="white" strokeWidth="0.5" />
+                  <line x1="50" y1="50" x2="50" y2="95" stroke="white" strokeWidth="0.5" />
+                  <line x1="50" y1="50" x2="5" y2="75" stroke="white" strokeWidth="0.5" />
+                  <line x1="50" y1="50" x2="5" y2="25" stroke="white" strokeWidth="0.5" />
+                </svg>
+
+                {/* Radar Visual Data */}
+                <svg viewBox="0 0 100 100" className="w-full h-full absolute inset-0 filter drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]">
+                  <polygon
+                    points="50,35 65,45 62,60 50,68 38,60 35,45"
+                    fill="rgba(59,130,246,0.3)"
+                    stroke="#3b82f6"
+                    strokeWidth="1.5"
+                    className="animate-pulse"
+                  />
+                  {/* Nodes */}
+                  <circle cx="50" cy="35" r="1.5" fill="#3b82f6" />
+                  <circle cx="65" cy="45" r="1.5" fill="#3b82f6" />
+                  <circle cx="62" cy="60" r="1.5" fill="#3b82f6" />
+                  <circle cx="50" cy="68" r="1.5" fill="#3b82f6" />
+                  <circle cx="38" cy="60" r="1.5" fill="#3b82f6" />
+                  <circle cx="35" cy="45" r="1.5" fill="#3b82f6" />
+                </svg>
+
+                {/* Labels */}
+                <div className="absolute top-0 text-[8px] font-black text-slate-500 uppercase tracking-tighter">Confiança</div>
+                <div className="absolute right-[5%] top-[20%] text-[8px] font-black text-slate-500 uppercase tracking-tighter">Clareza</div>
+                <div className="absolute right-[5%] bottom-[20%] text-[8px] font-black text-slate-500 uppercase tracking-tighter">Persuasão</div>
+                <div className="absolute bottom-0 text-[8px] font-black text-slate-500 uppercase tracking-tighter">Postura</div>
+                <div className="absolute left-[5%] bottom-[20%] text-[8px] font-black text-slate-500 uppercase tracking-tighter">Coerência</div>
+                <div className="absolute left-[5%] top-[20%] text-[8px] font-black text-slate-500 uppercase tracking-tighter">Fluência</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
