@@ -20,6 +20,7 @@ export interface User {
   termsAcceptedAt?: string;
   qtdFeedbacks?: number;
   avatarId?: string; // ID do avatar escolhido
+  isAdmin?: boolean;
 }
 
 export interface Course {

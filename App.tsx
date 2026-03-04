@@ -8,13 +8,14 @@ import LivePracticeSession from './components/LivePracticeSession';
 import PaymentModal from './components/PaymentModal';
 import SubscriptionModal from './components/SubscriptionModal';
 import AvatarChoice from './components/AvatarChoice';
+import AdminDashboard from './components/AdminDashboard';
 import { User, AvatarConfig, SessionResult, RANKS } from './types';
 import { supabase, getUserHistory, updateUserStats, saveSession, getUserProfile, updateUserProfile } from './services/supabase';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<SessionResult[]>([]);
-  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'session' | 'live_practice' | 'result' | 'avatarChoice'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard' | 'session' | 'live_practice' | 'result' | 'avatarChoice' | 'admin'>('landing');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarConfig | null>(null);
   const [lastSessionResult, setLastSessionResult] = useState<SessionResult | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -285,6 +286,8 @@ function App() {
             </button>
           </div>
         </div>
+      ) : currentView === 'admin' ? (
+        <AdminDashboard onBack={() => setCurrentView('dashboard')} />
       ) : (
         <Dashboard
           user={user}
@@ -296,6 +299,7 @@ function App() {
           onSubscribe={() => setShowSubscriptionModal(true)}
           onUpdateProfile={handleUpdateProfile}
           onPartialUpdate={handlePartialUserUpdate}
+          onAdminView={() => setCurrentView('admin')}
           onChangeAvatar={() => {
             if (user?.id) {
               handlePartialUserUpdate({ avatarId: undefined });

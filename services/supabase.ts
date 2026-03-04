@@ -60,7 +60,8 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
       phone: profileData.phone,
       termsAcceptedAt: profileData.terms_accepted_at,
       qtdFeedbacks: Number(profileData.qtd_feedbacks || 0),
-      avatarId: profileData.avatar_id
+      avatarId: profileData.avatar_id,
+      isAdmin: !!profileData.is_admin
     } as User;
   } catch (err) {
     console.error('[Supabase] Erro ao carregar perfil:', err);
@@ -123,6 +124,7 @@ export const updateUserStats = async (userId: string, updates: Partial<User>) =>
   if ((updates as any).surname) dbUpdates.surname = (updates as any).surname;
   if ((updates as any).username) dbUpdates.username = (updates as any).username;
   if (updates.avatarId !== undefined) dbUpdates.avatar_id = updates.avatarId;
+  if (updates.isAdmin !== undefined) dbUpdates.is_admin = updates.isAdmin;
 
   const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', userId);
   return !error;
@@ -371,4 +373,43 @@ export const updateCourseAudioUrl = async (table: 'lessons' | 'exercises', id: s
   const { error } = await supabase.from(table).update({ audio_url: audioUrl }).eq('id', id);
   if (error) console.error(`Erro ao atualizar audio_url em ${table}:`, error);
   return !error;
+};
+
+/**
+ * Funções Administrativas
+ */
+export const getAllStudentsData = async () => {
+  try {
+    // Busca todos os perfis (exceto admins se quiser filtrar, mas aqui buscamos todos)
+    const { data: profiles, error: pError } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('joined_date', { ascending: false });
+
+    if (pError) throw pError;
+
+    // Busca progresso de todos para calcular percentuais
+    const { data: progress, error: prError } = await supabase
+      .from('student_progress')
+      .select('user_id, completed');
+
+    if (prError) throw prError;
+
+    // Busca todas as sessões para calcular médias e histórico
+    // Limitando para não sobrecarregar, idealmente paginar ou filtrar no futuro
+    const { data: sessions, error: sError } = await supabase
+      .from('sessions')
+      .select('user_id, overall_score, confidence_score, clarity_score, persuasion_score, posture_score, date, lesson_id, feedback, transcript');
+
+    if (sError) throw sError;
+
+    return {
+      profiles: profiles || [],
+      progress: progress || [],
+      sessions: sessions || []
+    };
+  } catch (err) {
+    console.error("[Supabase Admin] Erro ao buscar dados gerenciais:", err);
+    return null;
+  }
 };

@@ -35,6 +35,7 @@ interface DashboardProps {
   onPartialUpdate?: (updates: Partial<User>) => void;
   onChangeAvatar?: () => void;
   onStartLivePractice?: (avatar: AvatarConfig) => void;
+  onAdminView?: () => void;
 }
 
 // Importing AVATARS from AvatarChoice
@@ -144,7 +145,7 @@ const SimpleRadarChart: React.FC<{ metrics: { label: string, score: number }[] }
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, onLogout, onAddCredits, onSubscribe, onUpdateProfile, onPartialUpdate, onChangeAvatar, onStartLivePractice }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, onLogout, onAddCredits, onSubscribe, onUpdateProfile, onPartialUpdate, onChangeAvatar, onStartLivePractice, onAdminView }) => {
   const [activeTab, setActiveTab] = useState<'practice' | 'history' | 'profile' | 'feedback'>('practice');
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [showRankList, setShowRankList] = useState(false); // Default hidden
@@ -542,7 +543,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, history, onStartSession, on
               <p className="font-mono font-black text-green-400 text-lg leading-none">{creditsInMinutes} min</p>
             </div>
           </div>
-          <button onClick={onLogout} className="text-sm px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors">Sair</button>
+          <div className="flex items-center gap-2">
+            {user.isAdmin && (
+              <button
+                onClick={onAdminView}
+                className="text-sm px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded-lg font-black uppercase tracking-widest transition-all"
+              >
+                Adm
+              </button>
+            )}
+            <button onClick={onLogout} className="text-sm px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors">Sair</button>
+          </div>
         </div>
       </header>
 
