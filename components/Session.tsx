@@ -154,13 +154,10 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
 
                 if (url.startsWith('http') && !url.includes('blob:')) {
                     audio.crossOrigin = "anonymous";
-                    // Adiciona um cache buster apenas para URLs de cache externas (Supabase)
-                    if (isCache) {
-                        const buster = `cb=${Date.now()}`;
-                        audio.src = url.includes('?') ? `${url}&${buster}` : `${url}?${buster}`;
-                    } else {
-                        audio.src = url;
-                    }
+                    // Adiciona um cache buster para TODAS as URLs externas (Supabase)
+                    // para evitar que o navegador use versões antigas do disco após regeneração.
+                    const buster = `cb=${Date.now()}`;
+                    audio.src = url.includes('?') ? `${url}&${buster}` : `${url}?${buster}`;
                 } else {
                     audio.src = url;
                 }

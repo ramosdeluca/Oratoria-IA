@@ -67,9 +67,9 @@ const safeJsonParse = (text: string): any => {
 
 // Modelos priorizando o menor custo (Flash é mais barato que Pro)
 const MODELS = {
-  // Apenas modelos Flash para custo mínimo absoluto
-  EVAL: ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"],
-  DETAILED: ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
+  // Modelos confirmados como funcionais via listModels/fetch
+  EVAL: ["gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-pro-latest"],
+  DETAILED: ["gemini-2.5-flash", "gemini-pro-latest"]
 };
 
 export const evaluateSession = async (transcript: string, userName: string): Promise<Omit<SessionResult, 'durationSeconds' | 'date' | 'avatarName'>> => {
@@ -327,31 +327,36 @@ export const generateEnhancedLessonScript = async (lessonContent: string): Promi
       const response = await (genAI as any).models.generateContent({
         model: modelName,
         systemInstruction: {
-          parts: [{ text: "Você é um Especialista em Edição Didática. Sua função é receber um conteúdo de aula e transformá-lo em um script de áudio que contenha a leitura integral do texto original seguida de uma breve explicação prática e dinâmica. Nunca use markdown, asteriscos ou títulos no script final. O texto deve ser contínuo para leitura de voz." }]
+          parts: [{ text: "Você é um Instrutor de Oratória Prestativo. Sua função é receber o texto de uma aula e transformá-lo em um script envolvente. O script DEVE conter o texto original seguido OBRIGATORIAMENTE de uma breve explicação prática com suas próprias palavras para facilitar o aprendizado. Não use markdown ou asteriscos." }]
         },
         contents: [{
           role: 'user',
           parts: [{
-            text: `ESTRUTURE O SCRIPT PARA O AVATAR DA SEGUINTE FORMA:
-1. TEXTO ORIGINAL: Leia exatamente o conteúdo abaixo sem alterar nenhuma palavra.
-2. TRANSIÇÃO: Adicione uma frase como "Para ficar mais claro...", "Resumindo o que acabamos de ver..." ou "Na prática, isso significa...".
-3. EXPLICAÇÃO/RESUMO: Adicione 2 a 3 frases curtas e dinâmicas explicando o que foi lido e dando contexto prático ao aluno.
-
-CONTEÚDO DA AULA:
+            text: `Roteiro para transformar:
 "${lessonContent}"
 
-SCRIPT FINAL PARA TTS (SEM FORMATAÇÃO):`
+INSTRUÇÕES:
+1. Comece lendo exatamente o texto acima.
+2. Adicione uma transição como "Na prática, isso quer dizer que..." ou "Em resumo...".
+3. Finalize com 2 frases explicando o conceito com suas próprias palavras de forma dinâmica.
+4. Retorne apenas o texto final contínuo para leitura de voz.
+
+SCRIPT PARA O AVATAR:`
           }]
         }],
         generationConfig: {
-          maxOutputTokens: 1000,
-          temperature: 0.5,
+          maxOutputTokens: 1200,
+          temperature: 0.75,
         }
       });
       const text = response.text || (response.response && response.response.text && (typeof response.response.text === 'function' ? response.response.text() : response.response.text));
       if (text) {
-        const finalScript = text.trim().replace(/\*/g, '').replace(/#/g, '').replace(/\[.*?\]/g, '');
-        console.log(`[Enhanced Script][DEBUG] Texto final enviado ao TTS:\n${finalScript.substring(0, 150)}... [Total: ${finalScript.length} chars]`);
+        const finalScript = text.trim()
+          .replace(/[*#]/g, '')
+          .replace(/\[.*?\]/g, '')
+          .replace(/PASSO \d:?/gi, '')
+          .replace(/Script para o avatar:?/gi, '');
+        console.log(`[Enhanced Script][DEBUG] Texto Gerado:\n"${finalScript}"`);
         return finalScript;
       }
     } catch (e) {
