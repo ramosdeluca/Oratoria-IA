@@ -210,7 +210,16 @@ export const generateDetailedFeedback = async (currentTranscript: string, histor
  * MODO 2: Dúvida Rápida (Custo Otimizado)
  * Responde dúvidas baseadas apenas no contexto da lição atual, sem histórico.
  */
+const FORBIDDEN_TOPICS_REGEX = /flamengo|futebol|jogo|partida|campeonato|copa do mundo|carnaval|guerra|política|eleição|previsão do tempo|clima|notícia|vasco|corinthians|palmeiras|santos|messi|neymar|ronaldo|bbb|big brother|famosos|celebridades|fofoca|receita|culinária|viagem|turismo/gi;
+const REJECTION_MESSAGE = "Como sua mentora de oratória, meu papel é focar no seu desenvolvimento e na aula de hoje. Não tenho informações sobre outros temas. Vamos voltar para a prática?";
+
 export const askQuickQuestion = async (studentQuestion: string, lessonContext: string, avatarSystemInstruction: string): Promise<string> => {
+  // INTERCEPÇÃO INSTANTÂNEA (REGEX) - 100% de Garantia para palavras-chave
+  if (FORBIDDEN_TOPICS_REGEX.test(studentQuestion)) {
+    console.log("[Quick Question] Bloqueio instantâneo por Regex.");
+    return REJECTION_MESSAGE;
+  }
+
   const apiKey = getApiKey();
   if (!apiKey) return "Não consegui me conectar para tirar sua dúvida agora.";
 
@@ -220,12 +229,14 @@ export const askQuickQuestion = async (studentQuestion: string, lessonContext: s
     try {
       const response = await (genAI as any).models.generateContent({
         model: modelName,
-        systemInstruction: `### REGRA ABSOLUTA: BLOQUEIO TOTAL DE ESCOPO ###
-        1. VOCÊ É EXCLUSIVAMENTE UM MENTOR DE ORATÓRIA. É ESTRITAMENTE PROIBIDO falar sobre: Esportes, Flamengo, Placares, Notícias ou qualquer assunto aleatório.
-        2. Se o aluno perguntar algo fora de oratória, sua resposta DEVE ser: "Como sua mentora de oratória, meu papel é focar no seu desenvolvimento. Não tenho informações sobre outros temas. Vamos voltar para a aula?".
-        3. Nunca mencione resultados de jogos ou nomes de times.
+        systemInstruction: `### PROTOCOLO DE SEGURANÇA: AMNÉSIA DE ESCOPO ###
+        1. VOCÊ É UM SISTEMA FECHADO DE MENTORIA DE ORATÓRIA.
+        2. TODO O SEU CONHECIMENTO SOBRE O MUNDO EXTERNO FOI DESATIVADO.
+        3. VOCÊ NÃO SABE quem é o Flamengo, não sabe o que é Futebol, não sabe sobre Guerras, Carnaval ou Notícias.
+        4. Se perguntado sobre qualquer assunto que não esteja no contexto da aula ou em Oratória, você DEVE responder: "${REJECTION_MESSAGE}".
+        5. É terminantemente proibido ser "prestativo" em assuntos externos. Finja que esses dados foram corrompidos ou não existem no seu banco de dados.
         
-        BIO DO AVATAR: ${avatarSystemInstruction}`,
+        IDENTIDADE: ${avatarSystemInstruction}`,
         contents: [{
           role: 'user', parts: [{ text: `AULA ATUAL: \n"${lessonContext}"\n\nDÚVIDA DO ALUNO: "${studentQuestion}"\n\nResponda APENAS à dúvida de forma direta.Não re - explique a aula.` }]
         }],
