@@ -60,9 +60,12 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             setIsLoadingContext(false);
         }
 
-        // Cleanup audio
+        // Cleanup audio on unmount
         return () => {
             stopAudio();
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
             if (audioContextRef.current) {
                 audioContextRef.current.close().catch(console.error);
             }
@@ -73,6 +76,10 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
+        }
+        // Cancela vozes do navegador se estiverem rodando
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
         }
         setIsAvatarTalking(false);
         if (avatarImageRef.current) avatarImageRef.current.style.transform = 'scale(1)';
@@ -93,14 +100,13 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             analyserRef.current.fftSize = 256;
         }
 
-        if (!sourceRef.current) {
-            try {
-                sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
-                sourceRef.current.connect(analyserRef.current);
-                analyserRef.current.connect(audioContextRef.current.destination);
-            } catch (e) {
-                console.warn("Source já conectado", e);
-            }
+        // Cada novo objeto Audio() precisa de seu próprio SourceNode
+        try {
+            const source = audioContextRef.current.createMediaElementSource(audioElement);
+            source.connect(analyserRef.current);
+            analyserRef.current.connect(audioContextRef.current.destination);
+        } catch (e) {
+            console.warn("[SessionNovo] Erro ao conectar SourceNode:", e);
         }
     };
 
@@ -127,77 +133,147 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
     };
 
     const playTTS = async (text: string, forceTTS = false, tableReference?: { table: 'lessons' | 'exercises', id: string, cachedUrl?: string }) => {
+        const traceId = Math.random().toString(36).substring(7);
+        console.log(`[SessionNovo][${traceId}] playTTS: "${text.substring(0, 30)}..." (Force: ${forceTTS}, Cache: ${!!tableReference?.cachedUrl})`);
+
         stopAudio();
         setIsProcessingResponse(true);
 
-        let audioUrl = "";
+        if (audioContextRef.current) {
+            audioContextRef.current.resume().catch(e => console.warn(`[SessionNovo][${traceId}] Erro ao resumir context:`, e));
+        }
+
+        const tryPlay = (url: string, isCache = false): Promise<void> => {
+            return new Promise((resolve, reject) => {
+                console.log(`[SessionNovo][${traceId}] tryPlay iniciando para: ${url.substring(0, 60)}...`);
+                const audio = new Audio();
+
+                if (url.startsWith('http') && !url.includes('blob:')) {
+                    audio.crossOrigin = "anonymous";
+                    // Adiciona um cache buster apenas para URLs de cache externas (Supabase)
+                    if (isCache) {
+                        const buster = `cb=${Date.now()}`;
+                        audio.src = url.includes('?') ? `${url}&${buster}` : `${url}?${buster}`;
+                    } else {
+                        audio.src = url;
+                    }
+                } else {
+                    audio.src = url;
+                }
+                audioRef.current = audio;
+
+                const loadTimeout = setTimeout(() => {
+                    console.error(`[SessionNovo][${traceId}] Timeout de 8s no carregamento de ${url}`);
+                    audio.pause();
+                    audio.src = "";
+                    reject(new Error("Timeout de carregamento"));
+                }, 8000);
+
+                audio.onplay = () => {
+                    console.log(`[SessionNovo][${traceId}] Evento 'onplay' disparado.`);
+                    setIsProcessingResponse(false);
+                    setIsAvatarTalking(true);
+                    animateAvatar();
+                };
+
+                audio.onerror = (err) => {
+                    clearTimeout(loadTimeout);
+                    const errorDetails = audio.error ? `Code: ${audio.error.code}, Msg: ${audio.error.message}` : "Erro desconhecido";
+                    console.error(`[SessionNovo][${traceId}] Evento 'onerror' disparado: ${errorDetails}`);
+                    reject(new Error(`Erro de carregamento: ${errorDetails}`));
+                };
+
+                audio.onended = () => {
+                    setIsAvatarTalking(false);
+                    if (avatarImageRef.current) avatarImageRef.current.style.transform = 'scale(1)';
+                    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+                };
+
+                setupAudioAnalyser(audio);
+
+                console.log(`[SessionNovo][${traceId}] Chamando audio.play()...`);
+                audio.play()
+                    .then(() => {
+                        clearTimeout(loadTimeout);
+                        console.log(`[SessionNovo][${traceId}] Promessa play() resolvida.`);
+                        resolve();
+                    })
+                    .catch(e => {
+                        clearTimeout(loadTimeout);
+                        console.error(`[SessionNovo][${traceId}] Promessa play() rejeitada:`, e);
+                        reject(e);
+                    });
+            });
+        };
+
+        const generateAndPlay = async () => {
+            console.log(`[SessionNovo][${traceId}] Iniciando geração de novo áudio Cloud TTS...`);
+            try {
+                const enhancedText = await generateEnhancedLessonScript(text).catch(err => {
+                    console.warn(`[SessionNovo][${traceId}] Falha ao enriquecer texto, usando original:`, err);
+                    return text;
+                });
+
+                console.log(`[SessionNovo][${traceId}] Chamando Cloud TTS API...`);
+                const audioBlob = await generateTTS(enhancedText, avatar.name);
+                if (!audioBlob) throw new Error("A API de TTS retornou vazio");
+
+                console.log(`[SessionNovo][${traceId}] Áudio gerado (${audioBlob.size} bytes). Preparando URL...`);
+                let finalUrl = "";
+                if (tableReference) {
+                    const fileName = `${tableReference.table}_${tableReference.id}_${avatar.name}.mp3`;
+                    const uploadedUrl = await uploadLessonAudio(fileName, audioBlob).catch(err => {
+                        console.error(`[SessionNovo][${traceId}] Falha no upload para cache:`, err);
+                        return null;
+                    });
+
+                    if (uploadedUrl) {
+                        finalUrl = uploadedUrl;
+                        updateCourseAudioUrl(tableReference.table, tableReference.id, uploadedUrl);
+                    } else {
+                        finalUrl = URL.createObjectURL(audioBlob);
+                    }
+                } else {
+                    finalUrl = URL.createObjectURL(audioBlob);
+                }
+
+                console.log(`[SessionNovo][${traceId}] Tentando tocar áudio gerado...`);
+                await tryPlay(finalUrl);
+            } catch (err) {
+                console.error(`[SessionNovo][${traceId}] Falha fatal no fluxo Cloud TTS:`, err);
+                throw err;
+            }
+        };
 
         try {
             if (!forceTTS && tableReference?.cachedUrl && tableReference.cachedUrl.includes(avatar.name)) {
-                console.log(`[SessionNovo] Usando áudio em cache para ${tableReference.table}: ${tableReference.id}`);
-                audioUrl = tableReference.cachedUrl;
-            } else {
-                console.log(`[SessionNovo] Cache não encontrado ou forçado. Enriquecendo script e gerando novo TTS...`);
-
-                // Enriquece o texto da aula com uma explicação dinâmica da IA
-                const enhancedText = await generateEnhancedLessonScript(text);
-                console.log(`[SessionNovo] Script enriquecido: "${enhancedText.substring(0, 50)}..."`);
-
-                const audioBlob = await generateTTS(enhancedText, avatar.name);
-                if (!audioBlob) throw new Error("Falha ao gerar áudio");
-
-                if (tableReference) {
-                    const fileName = `${tableReference.table}_${tableReference.id}_${avatar.name}.mp3`;
-                    console.log(`[SessionNovo] Solicitando upload do áudio para o bucket: ${fileName}`);
-                    const uploadedUrl = await uploadLessonAudio(fileName, audioBlob);
-
-                    if (uploadedUrl) {
-                        console.log("[SessionNovo] Áudio persistido com sucesso no bucket.");
-                        audioUrl = uploadedUrl;
-                        await updateCourseAudioUrl(tableReference.table, tableReference.id, uploadedUrl);
-                    } else {
-                        console.warn("[SessionNovo] Falha no upload para o bucket, usando URL local temporária.");
-                        audioUrl = URL.createObjectURL(audioBlob);
-                    }
-                } else {
-                    audioUrl = URL.createObjectURL(audioBlob);
+                try {
+                    console.log(`[SessionNovo][${traceId}] Passo 1: Tentando áudio em cache...`);
+                    await tryPlay(tableReference.cachedUrl, true);
+                } catch (cacheErr) {
+                    console.warn(`[SessionNovo][${traceId}] Passo 2: Cache falhou (${cacheErr.message}). Indo para Failover...`);
+                    await generateAndPlay();
                 }
+            } else {
+                console.log(`[SessionNovo][${traceId}] Passo 1: Ignorando cache. Gerando direto...`);
+                await generateAndPlay();
             }
-
-            const audio = new Audio(audioUrl);
-            audio.crossOrigin = "anonymous";
-            audioRef.current = audio;
-
-            audio.onplay = () => {
-                setIsProcessingResponse(false);
-                setIsAvatarTalking(true);
-                setupAudioAnalyser(audio);
-                animateAvatar();
-            };
-
-            audio.onended = () => {
-                setIsAvatarTalking(false);
-                if (avatarImageRef.current) avatarImageRef.current.style.transform = 'scale(1)';
-                if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            };
-
-            await audio.play();
-        } catch (e) {
-            console.error("[SessionNovo] Erro no Cloud TTS, tentando fallback local:", e);
+        } catch (criticalErr) {
+            console.error(`[SessionNovo][${traceId}] Passo Final: Tudo falhou. Fallback para voz robótica:`, criticalErr);
             try {
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'pt-BR';
-                utterance.rate = 1.0;
-
-                utterance.onstart = () => {
-                    setIsProcessingResponse(false);
-                    setIsAvatarTalking(true);
-                };
+                const isFemale = ['Sophia', 'Maya', 'Sarah', 'Kore'].includes(avatar.name);
+                if (isFemale && window.speechSynthesis) {
+                    const femaleVoice = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('pt-BR') && (v.name.includes('Maria') || v.name.includes('Heloisa') || v.name.includes('Female')));
+                    if (femaleVoice) utterance.voice = femaleVoice;
+                }
+                utterance.onstart = () => { setIsProcessingResponse(false); setIsAvatarTalking(true); };
                 utterance.onend = () => setIsAvatarTalking(false);
-
                 window.speechSynthesis.speak(utterance);
-            } catch (fallbackErr) {
-                setLocalError("Não foi possível reproduzir a voz do avatar.");
+                setTimeout(() => setIsProcessingResponse(false), 1500);
+            } catch (f) {
+                setLocalError("Erro ao reproduzir voz.");
                 setIsProcessingResponse(false);
             }
         }

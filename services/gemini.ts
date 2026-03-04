@@ -6,11 +6,11 @@ import { SessionResult, DetailedFeedback } from "../types";
  * Detecção dinâmica de chave de API - Alinhada com useLiveAvatar.ts
  */
 const getApiKey = () => {
-  const key = (process as any).env?.GEMINI_API_KEY ||
-    (process as any).env?.API_KEY ||
-    (process as any).env?.VITE_GEMINI_API_KEY ||
-    (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+  // Em projetos Vite, o acesso deve ser via import.meta.env
+  const key = (import.meta as any).env?.VITE_GEMINI_API_KEY ||
     (typeof window !== 'undefined' && (window as any).VITE_GEMINI_API_KEY) ||
+    (process as any).env?.VITE_GEMINI_API_KEY ||
+    (process as any).env?.GEMINI_API_KEY ||
     "";
   return key;
 };
@@ -68,8 +68,8 @@ const safeJsonParse = (text: string): any => {
 // Modelos priorizando o menor custo (Flash é mais barato que Pro)
 const MODELS = {
   // Apenas modelos Flash para custo mínimo absoluto
-  EVAL: ["gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"],
-  DETAILED: ["gemini-2.5-flash", "gemini-1.5-flash-latest"]
+  EVAL: ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"],
+  DETAILED: ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
 };
 
 export const evaluateSession = async (transcript: string, userName: string): Promise<Omit<SessionResult, 'durationSeconds' | 'date' | 'avatarName'>> => {
@@ -326,25 +326,33 @@ export const generateEnhancedLessonScript = async (lessonContent: string): Promi
     try {
       const response = await (genAI as any).models.generateContent({
         model: modelName,
+        systemInstruction: {
+          parts: [{ text: "Você é um Especialista em Edição Didática. Sua função é receber um conteúdo de aula e transformá-lo em um script de áudio que contenha a leitura integral do texto original seguida de uma breve explicação prática e dinâmica. Nunca use markdown, asteriscos ou títulos no script final. O texto deve ser contínuo para leitura de voz." }]
+        },
         contents: [{
-          role: 'user', parts: [{
-            text: `CONTEÚDO DA AULA: \n"${lessonContent}"\n\nOBJETIVO: Você vai gerar um script para o avatar ler. O script deve conter:
-1. O texto original da aula integralmente.
-2. Uma frase de transição natural (ex: "Em outras palavras...", "Para facilitar o entendimento...").
-3. Uma explicação ou contexto resumido (máximo 2 frases) que torne o tópico mais dinâmico e prático.
+          role: 'user',
+          parts: [{
+            text: `ESTRUTURE O SCRIPT PARA O AVATAR DA SEGUINTE FORMA:
+1. TEXTO ORIGINAL: Leia exatamente o conteúdo abaixo sem alterar nenhuma palavra.
+2. TRANSIÇÃO: Adicione uma frase como "Para ficar mais claro...", "Resumindo o que acabamos de ver..." ou "Na prática, isso significa...".
+3. EXPLICAÇÃO/RESUMO: Adicione 2 a 3 frases curtas e dinâmicas explicando o que foi lido e dando contexto prático ao aluno.
 
-IMPORTANTE: O texto deve ser contínuo e pronto para ser lido por um sistema de voz (TTS). Não use marcações, asteriscos ou títulos.
-Script Final:`
+CONTEÚDO DA AULA:
+"${lessonContent}"
+
+SCRIPT FINAL PARA TTS (SEM FORMATAÇÃO):`
           }]
         }],
         generationConfig: {
-          maxOutputTokens: 300,
-          temperature: 0.3,
+          maxOutputTokens: 1000,
+          temperature: 0.5,
         }
       });
       const text = response.text || (response.response && response.response.text && (typeof response.response.text === 'function' ? response.response.text() : response.response.text));
       if (text) {
-        return text.trim().replace(/\*/g, '');
+        const finalScript = text.trim().replace(/\*/g, '').replace(/#/g, '').replace(/\[.*?\]/g, '');
+        console.log(`[Enhanced Script][DEBUG] Texto final enviado ao TTS:\n${finalScript.substring(0, 150)}... [Total: ${finalScript.length} chars]`);
+        return finalScript;
       }
     } catch (e) {
       console.error(`[Enhanced Script] Erro em ${modelName} `, e);
@@ -357,31 +365,35 @@ Script Final:`
  * MODO 1 e 3: Geração de Áudio Dinâmica (TTS)
  */
 export const generateTTS = async (text: string, voiceName: string): Promise<Blob | null> => {
-  const apiKey = getApiKey(); // Google Cloud API Key
+  const apiKey = getApiKey();
+  console.log(`[Cloud TTS] Iniciando síntese para: ${voiceName}. Chave presente: ${!!apiKey}`);
+
   if (!apiKey) {
-    console.error("API Key ausente para TTS.");
+    console.error("[Cloud TTS] API Key ausente para TTS.");
     return null;
   }
 
   try {
-    // API Route padronizada do Google Cloud Text-to-Speech
     const ttsUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
-    // Mapeamento de vozes para consistência entre Live Practice (Gemini Live) e Aulas (Cloud TTS)
-    let googleVoiceName = 'pt-BR-Neural2-B'; // Voz masculina padrão (Leo / Charon)
+    let googleVoiceName = 'pt-BR-Neural2-B';
     let ssmlGender = 'MALE';
 
     const normalizedVoice = voiceName.toLowerCase();
 
-    // Identifica as vozes femininas e mapeia para Neural2-C (mais limpa e próxima de Kore)
+    // Mapeamento Robusto: Sarah/Sophia/Maya/Kore -> Feminino (Neural2-C)
+    // Leo/Charon/Puck -> Masculino (Neural2-B)
     const isFemale = normalizedVoice.includes('kore') ||
       normalizedVoice.includes('sarah') ||
       normalizedVoice.includes('sophia') ||
       normalizedVoice.includes('maya');
 
     if (isFemale) {
-      googleVoiceName = 'pt-BR-Neural2-C'; // Voz feminina premium mais expressiva
+      googleVoiceName = 'pt-BR-Neural2-C';
       ssmlGender = 'FEMALE';
+    } else {
+      googleVoiceName = 'pt-BR-Neural2-B';
+      ssmlGender = 'MALE';
     }
 
     const payload = {
@@ -396,13 +408,17 @@ export const generateTTS = async (text: string, voiceName: string): Promise<Blob
       body: JSON.stringify(payload)
     });
 
+    console.log(`[Cloud TTS API] Status da Resposta: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      console.error("[TTS API] Erro na requisição Cloud TTS:", await response.text());
+      const errorText = await response.text();
+      console.error("[Cloud TTS API] Erro na requisição:", errorText);
       return null;
     }
 
     const json = await response.json();
     if (json.audioContent) {
+      console.log(`[Cloud TTS API] Áudio recebido (Base64). Tamanho: ${json.audioContent.length} chars. Primeiros 20: ${json.audioContent.substring(0, 20)}`);
       // Decode base64 to Blob
       const byteCharacters = atob(json.audioContent);
       const byteNumbers = new Array(byteCharacters.length);
@@ -410,9 +426,12 @@ export const generateTTS = async (text: string, voiceName: string): Promise<Blob
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      return new Blob([byteArray], { type: 'audio/mpeg' });
+      const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+      console.log(`[Cloud TTS API] Blob gerado com sucesso: ${blob.size} bytes`);
+      return blob;
     }
 
+    console.warn("[Cloud TTS API] Nenhum audioContent retornado no JSON.");
     return null;
   } catch (e) {
     console.error(`[TTS Service] Erro disparado ao gerar áudio:`, e);

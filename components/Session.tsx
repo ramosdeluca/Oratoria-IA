@@ -60,9 +60,12 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             setIsLoadingContext(false);
         }
 
-        // Cleanup audio
+        // Cleanup audio on unmount
         return () => {
             stopAudio();
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
             if (audioContextRef.current) {
                 audioContextRef.current.close().catch(console.error);
             }
@@ -73,6 +76,10 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
+        }
+        // Cancela vozes do navegador se estiverem rodando
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
         }
         setIsAvatarTalking(false);
         if (avatarImageRef.current) avatarImageRef.current.style.transform = 'scale(1)';
@@ -93,14 +100,16 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
             analyserRef.current.fftSize = 256;
         }
 
-        if (!sourceRef.current) {
-            try {
-                sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
-                sourceRef.current.connect(analyserRef.current);
-                analyserRef.current.connect(audioContextRef.current.destination);
-            } catch (e) {
-                console.warn("Source já conectado", e);
-            }
+        // Cada novo objeto Audio() precisa de seu próprio SourceNode
+        try {
+            const source = audioContextRef.current.createMediaElementSource(audioElement);
+            source.connect(analyserRef.current);
+            analyserRef.current.connect(audioContextRef.current.destination);
+            sourceRef.current = source; // Store the new source node
+        } catch (e) {
+            console.warn("[Session] Erro ao conectar SourceNode:", e);
+            // Se falhar a conexão ao context (CORS ou outro), o áudio ainda pode tocar 
+            // se não tiver sido redirecionado, mas aqui ele FOI redirecionado.
         }
     };
 
@@ -127,80 +136,152 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
     };
 
     const playTTS = async (text: string, forceTTS = false, tableReference?: { table: 'lessons' | 'exercises', id: string, cachedUrl?: string }) => {
+        const traceId = Math.random().toString(36).substring(7);
+        console.log(`[Session][${traceId}] playTTS: "${text.substring(0, 30)}..." (Force: ${forceTTS}, Cache: ${!!tableReference?.cachedUrl})`);
+
         stopAudio();
         setIsProcessingResponse(true);
 
-        let audioUrl = "";
+        // Resume AudioContext. Non-blocking.
+        if (audioContextRef.current) {
+            audioContextRef.current.resume().catch(e => console.warn(`[Session][${traceId}] Erro ao resumir context:`, e));
+        }
 
-        try {
-            // Só usa o cache se for para o mesmo avatar (mesma voz)
-            if (!forceTTS && tableReference?.cachedUrl && tableReference.cachedUrl.includes(avatar.name)) {
-                console.log(`[Session] Usando áudio em cache para ${tableReference.table}: ${tableReference.id}`);
-                audioUrl = tableReference.cachedUrl;
-            } else {
-                console.log(`[Session] Cache não encontrado ou forçado. Enriquecendo script e gerando novo TTS...`);
+        const tryPlay = (url: string, isCache = false): Promise<void> => {
+            return new Promise((resolve, reject) => {
+                console.log(`[Session][${traceId}] tryPlay iniciando para: ${url.substring(0, 60)}...`);
+                const audio = new Audio();
 
-                // Enriquece o texto da aula com uma explicação dinâmica da IA
-                const enhancedText = await generateEnhancedLessonScript(text);
-                console.log(`[Session] Script enriquecido: "${enhancedText.substring(0, 50)}..."`);
-
-                const audioBlob = await generateTTS(enhancedText, avatar.name);
-                if (!audioBlob) throw new Error("Falha ao gerar áudio Gemini TTS");
-
-                if (tableReference) {
-                    const fileName = `${tableReference.table}_${tableReference.id}_${avatar.name}.mp3`;
-                    console.log(`[Session] Solicitando upload do áudio para o bucket: ${fileName}`);
-                    const uploadedUrl = await uploadLessonAudio(fileName, audioBlob);
-
-                    if (uploadedUrl) {
-                        console.log("[Session] Áudio persistido com sucesso no bucket.");
-                        audioUrl = uploadedUrl;
-                        await updateCourseAudioUrl(tableReference.table, tableReference.id, uploadedUrl);
+                if (url.startsWith('http') && !url.includes('blob:')) {
+                    audio.crossOrigin = "anonymous";
+                    // Adiciona um cache buster apenas para URLs de cache externas (Supabase)
+                    if (isCache) {
+                        const buster = `cb=${Date.now()}`;
+                        audio.src = url.includes('?') ? `${url}&${buster}` : `${url}?${buster}`;
                     } else {
-                        console.warn("[Session] Falha no upload para o bucket, usando URL local temporária.");
-                        audioUrl = URL.createObjectURL(audioBlob);
+                        audio.src = url;
                     }
                 } else {
-                    audioUrl = URL.createObjectURL(audioBlob);
+                    audio.src = url;
                 }
-            }
+                audioRef.current = audio;
 
-            const audio = new Audio(audioUrl);
-            audio.crossOrigin = "anonymous";
-            audioRef.current = audio;
+                const loadTimeout = setTimeout(() => {
+                    console.error(`[Session][${traceId}] Timeout de 8s no carregamento de ${url}`);
+                    audio.pause();
+                    audio.src = "";
+                    reject(new Error("Timeout de carregamento"));
+                }, 8000);
 
-            audio.onplay = () => {
-                setIsProcessingResponse(false);
-                setIsAvatarTalking(true);
-                setupAudioAnalyser(audio);
-                animateAvatar();
-            };
-
-            audio.onended = () => {
-                setIsAvatarTalking(false);
-                if (avatarImageRef.current) avatarImageRef.current.style.transform = 'scale(1)';
-                if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            };
-
-            await audio.play();
-        } catch (e) {
-            console.error("[Session] Erro no Cloud TTS, tentando fallback local:", e);
-            try {
-                // Fallback para Browser TTS (Web Speech API) para não travar a aula
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'pt-BR';
-                utterance.rate = 1.0;
-
-                utterance.onstart = () => {
+                audio.onplay = () => {
+                    console.log(`[Session][${traceId}] Evento 'onplay' disparado. (Status: ${audio.readyState})`);
                     setIsProcessingResponse(false);
                     setIsAvatarTalking(true);
-                    // Sem analyser no fallback nativo para evitar complexidade, apenas animação simples se necessário
+                    animateAvatar();
                 };
-                utterance.onend = () => setIsAvatarTalking(false);
 
+                audio.onerror = (err) => {
+                    clearTimeout(loadTimeout);
+                    const errorDetails = audio.error ? `Code: ${audio.error.code}, Msg: ${audio.error.message}` : "Erro desconhecido";
+                    console.error(`[Session][${traceId}] Evento 'onerror' disparado: ${errorDetails}`);
+                    reject(new Error(`Erro de carregamento: ${errorDetails}`));
+                };
+
+                audio.onended = () => {
+                    setIsAvatarTalking(false);
+                    if (avatarImageRef.current) avatarImageRef.current.style.transform = 'scale(1)';
+                    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+                };
+
+                // Tenta rotear o áudio.
+                setupAudioAnalyser(audio);
+
+                console.log(`[Session][${traceId}] Chamando audio.play()...`);
+                audio.play()
+                    .then(() => {
+                        clearTimeout(loadTimeout);
+                        console.log(`[Session][${traceId}] Promessa play() resolvida com sucesso!`);
+                        resolve();
+                    })
+                    .catch(e => {
+                        clearTimeout(loadTimeout);
+                        console.error(`[Session][${traceId}] Promessa play() rejeitada:`, e);
+                        reject(e);
+                    });
+            });
+        };
+
+        const generateAndPlay = async () => {
+            console.log(`[Session][${traceId}] Iniciando geração de novo áudio Cloud TTS...`);
+            try {
+                // Tenta enriquecer, se falhar usa o texto original
+                const enhancedText = await generateEnhancedLessonScript(text).catch(err => {
+                    console.warn(`[Session][${traceId}] Falha ao enriquecer texto, usando original:`, err);
+                    return text;
+                });
+
+                console.log(`[Session][${traceId}] Chamando Cloud TTS API...`);
+                const audioBlob = await generateTTS(enhancedText, avatar.name);
+                if (!audioBlob) throw new Error("A API de TTS retornou vazio");
+
+                console.log(`[Session][${traceId}] Áudio gerado (${audioBlob.size} bytes). Preparando URL...`);
+                let finalUrl = "";
+                if (tableReference) {
+                    const fileName = `${tableReference.table}_${tableReference.id}_${avatar.name}.mp3`;
+                    const uploadedUrl = await uploadLessonAudio(fileName, audioBlob).catch(err => {
+                        console.error(`[Session][${traceId}] Falha no upload para cache:`, err);
+                        return null;
+                    });
+
+                    if (uploadedUrl) {
+                        finalUrl = uploadedUrl;
+                        updateCourseAudioUrl(tableReference.table, tableReference.id, uploadedUrl);
+                    } else {
+                        finalUrl = URL.createObjectURL(audioBlob);
+                    }
+                } else {
+                    finalUrl = URL.createObjectURL(audioBlob);
+                }
+
+                console.log(`[Session][${traceId}] Tentando tocar áudio gerado...`);
+                await tryPlay(finalUrl);
+            } catch (err) {
+                console.error(`[Session][${traceId}] Falha fatal no fluxo Cloud TTS:`, err);
+                throw err;
+            }
+        };
+
+        // Fluxo Principal de Decisão
+        try {
+            if (!forceTTS && tableReference?.cachedUrl && tableReference.cachedUrl.includes(avatar.name)) {
+                try {
+                    console.log(`[Session][${traceId}] Passo 1: Tentando áudio em cache...`);
+                    await tryPlay(tableReference.cachedUrl, true);
+                } catch (cacheErr) {
+                    console.warn(`[Session][${traceId}] Passo 2: Cache falhou (${cacheErr.message}). Indo para Failover...`);
+                    await generateAndPlay();
+                }
+            } else {
+                console.log(`[Session][${traceId}] Passo 1: Ignorando cache. Gerando direto...`);
+                await generateAndPlay();
+            }
+        } catch (criticalErr) {
+            console.error(`[Session][${traceId}] Passo Final: Tudo falhou. Fallback para voz robótica:`, criticalErr);
+            // Fallback para voz do navegador
+            try {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'pt-BR';
+                const isFemale = ['Sophia', 'Maya', 'Sarah', 'Kore'].includes(avatar.name);
+                if (isFemale && window.speechSynthesis) {
+                    const femaleVoice = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('pt-BR') && (v.name.includes('Maria') || v.name.includes('Heloisa') || v.name.includes('Female')));
+                    if (femaleVoice) utterance.voice = femaleVoice;
+                }
+                utterance.onstart = () => { setIsProcessingResponse(false); setIsAvatarTalking(true); };
+                utterance.onend = () => setIsAvatarTalking(false);
                 window.speechSynthesis.speak(utterance);
-            } catch (fallbackErr) {
-                setLocalError("Não foi possível reproduzir a voz pela Nuvem (TTS).");
+                setTimeout(() => setIsProcessingResponse(false), 1500);
+            } catch (f) {
+                setLocalError("Erro ao reproduzir voz.");
                 setIsProcessingResponse(false);
             }
         }
