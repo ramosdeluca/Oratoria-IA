@@ -184,9 +184,25 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
 
             await audio.play();
         } catch (e) {
-            console.error(e);
-            setLocalError("Não foi possível reproduzir a voz pela Nuvem (TTS).");
-            setIsProcessingResponse(false);
+            console.error("[Session] Erro no Cloud TTS, tentando fallback local:", e);
+            try {
+                // Fallback para Browser TTS (Web Speech API) para não travar a aula
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 1.0;
+
+                utterance.onstart = () => {
+                    setIsProcessingResponse(false);
+                    setIsAvatarTalking(true);
+                    // Sem analyser no fallback nativo para evitar complexidade, apenas animação simples se necessário
+                };
+                utterance.onend = () => setIsAvatarTalking(false);
+
+                window.speechSynthesis.speak(utterance);
+            } catch (fallbackErr) {
+                setLocalError("Não foi possível reproduzir a voz pela Nuvem (TTS).");
+                setIsProcessingResponse(false);
+            }
         }
     };
 

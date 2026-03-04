@@ -183,9 +183,23 @@ const Session: React.FC<SessionProps> = ({ user, avatar, onComplete, onCancel })
 
             await audio.play();
         } catch (e) {
-            console.error(e);
-            setLocalError("Não foi possível reproduzir a voz do avatar.");
-            setIsProcessingResponse(false);
+            console.error("[SessionNovo] Erro no Cloud TTS, tentando fallback local:", e);
+            try {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 1.0;
+
+                utterance.onstart = () => {
+                    setIsProcessingResponse(false);
+                    setIsAvatarTalking(true);
+                };
+                utterance.onend = () => setIsAvatarTalking(false);
+
+                window.speechSynthesis.speak(utterance);
+            } catch (fallbackErr) {
+                setLocalError("Não foi possível reproduzir a voz do avatar.");
+                setIsProcessingResponse(false);
+            }
         }
     };
 
